@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/claude-contrib/claude-extensions/compare/v1.1.0...v1.2.0) (2026-03-04)
+
+
+### Features
+
+* add tmux-notify plugin — bell, display-message, and auto-focus ([82cf961](https://github.com/claude-contrib/claude-extensions/commit/82cf961141905cc23128581146b3d63e80a61dee))
+
 ## [1.1.0](https://github.com/claude-contrib/claude-extensions/compare/v1.0.0...v1.1.0) (2026-03-04)
 
 
