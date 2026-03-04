@@ -1,9 +1,9 @@
 {
   "description": "Send macOS Notification Center alerts when Claude completes or needs attention",
   "hooks": {
-    "Stop": [
+    "Notification": [
       {
-        "matcher": "*",
+        "matcher": "permission_prompt",
         "hooks": [
           {
             "type": "command",
@@ -11,11 +11,9 @@
             "timeout": 5
           }
         ]
-      }
-    ],
-    "Notification": [
+      },
       {
-        "matcher": "*",
+        "matcher": "elicitation_dialog",
         "hooks": [
           {
             "type": "command",
