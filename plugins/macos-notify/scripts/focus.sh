@@ -19,9 +19,7 @@ TERM_PROGRAM="$("$TMUX_BIN" show-option -gv "@claude-notify-term-program" 2>/dev
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Activate the terminal app
-if [[ -n "$TERM_PROGRAM" ]]; then
-  osascript "${SCRIPTS_DIR}/focus.scpt" "$TERM_PROGRAM"
-fi
+osascript "${SCRIPTS_DIR}/focus.scpt" "$TERM_PROGRAM"
 
 # Switch the tmux client to the correct window
 if [[ -n "$TMUX_CLIENT" ]] && [[ -n "$TMUX_SESSION" ]] && [[ -n "$TMUX_WINDOW" ]]; then
