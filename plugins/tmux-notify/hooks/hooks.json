@@ -3,11 +3,11 @@
   "hooks": {
     "Stop": [
       {
-        "matcher": "",
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/notify.sh",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/notify.tmux.sh",
             "timeout": 5
           }
         ]
@@ -15,11 +15,11 @@
     ],
     "Notification": [
       {
-        "matcher": "",
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/notify.sh",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/notify.tmux.sh",
             "timeout": 5
           }
         ]
