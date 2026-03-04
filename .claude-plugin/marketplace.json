@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "A curated collection of Claude Code extensions — hooks, context rules, and session automation",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "plugins": [
     {
@@ -18,8 +18,17 @@
       },
       "source": "./plugins/agents-context",
       "category": "context",
-      "tags": ["agents.md", "context", "rules"],
-      "keywords": ["agents.md", "context", "rules", "path-specific"]
+      "tags": [
+        "agents.md",
+        "context",
+        "rules"
+      ],
+      "keywords": [
+        "agents.md",
+        "context",
+        "rules",
+        "path-specific"
+      ]
     }
   ]
 }
