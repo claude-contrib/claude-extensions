@@ -8,6 +8,7 @@
 #   $4 - tmux client tty (e.g. /dev/ttys001)
 
 set -euo pipefail
+[ -z "${DEBUG:-}" ] || set -x
 
 TMUX_BIN="${1:-tmux}"
 TMUX_SESSION="${2:-}"

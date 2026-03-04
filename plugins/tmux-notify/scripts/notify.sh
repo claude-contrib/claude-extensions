@@ -23,6 +23,7 @@
 #   Non-zero - tmux command error
 
 set -euo pipefail
+[ -z "${DEBUG:-}" ] || set -x
 
 # Read tmux option with fallback default
 #
@@ -170,22 +171,23 @@ _auto_focus() {
   fi
 }
 
-# Handle a Stop event
-#
-# Fired when Claude finishes responding.
-_handle_stop() {
+# Handle a Stop or Notification event
+_handle_event() {
+  local event="$1"
   local window
   window="$(_tmux_pane_window_name)"
-  _notify "Claude [${window}]: done"
-}
 
-# Handle a Notification event
-#
-# Fired when Claude needs attention (permission prompts, idle prompts, etc.).
-_handle_notification() {
-  local window
-  window="$(_tmux_pane_window_name)"
-  _notify "Claude [${window}]: waiting"
+  local text
+  case "$event" in
+  Stop)
+    text="Claude [${window}]: done"
+    ;;
+  Notification)
+    text="Claude [${window}]: waiting"
+    ;;
+  esac
+
+  _notify "$text"
 }
 
 # Main entry point
@@ -204,11 +206,8 @@ main() {
   event_name="$(_json_field "hook_event_name" "$event_args")"
 
   case "$event_name" in
-  Stop)
-    _handle_stop
-    ;;
-  Notification)
-    _handle_notification
+  Stop | Notification)
+    _handle_event "$event_name"
     ;;
   esac
 

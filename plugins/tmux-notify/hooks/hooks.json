@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/tmux_notify.sh",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/notify.sh",
             "timeout": 5
           }
         ]
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/tmux_notify.sh",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/notify.sh",
             "timeout": 5
           }
         ]
