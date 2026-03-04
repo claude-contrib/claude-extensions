@@ -4,7 +4,7 @@
 # Args:
 #   $1 - path to tmux binary
 #   $2 - tmux session name
-#   $3 - tmux window name
+#   $3 - tmux window id (e.g. @4)
 #   $4 - tmux client tty (e.g. /dev/ttys001)
 
 set -euo pipefail

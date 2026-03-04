@@ -58,9 +58,11 @@ _tmux_session_name() {
 	tmux display-message -p -t "${TMUX_PANE}" "#{session_name}" 2>/dev/null || true
 }
 
-# Prints the window name of Claude's pane
-_tmux_window_name() {
-	tmux display-message -p -t "${TMUX_PANE}" "#{window_name}" 2>/dev/null || true
+# Prints the unique window ID of Claude's pane (e.g. @4).
+# Using the window ID avoids ambiguity when the window name contains dots,
+# which tmux otherwise interprets as the window-pane separator in target strings.
+_tmux_window_id() {
+	tmux display-message -p -t "${TMUX_PANE}" "#{window_id}" 2>/dev/null || true
 }
 
 # Prints the TTY of the current tmux client
@@ -119,7 +121,7 @@ _scripts_dir() {
 #   $2 - Subtitle (action — branch)
 #   $3 - Sound name (e.g. "Glass", "Ping"), or empty to omit sound
 #   $4 - tmux session name (optional)
-#   $5 - tmux window name  (optional)
+#   $5 - tmux window id    (optional, e.g. @4)
 #   $6 - tmux client tty   (optional)
 _send_notification() {
 	local title="$1"
@@ -200,7 +202,7 @@ main() {
 	local tmux_session="" tmux_window="" tmux_client=""
 	if [[ -n "${TMUX:-}" ]] && [[ -n "${TMUX_PANE:-}" ]]; then
 		tmux_session="$(_tmux_session_name)"
-		tmux_window="$(_tmux_window_name)"
+		tmux_window="$(_tmux_window_id)"
 		tmux_client="$(_tmux_client_tty)"
 	fi
 
