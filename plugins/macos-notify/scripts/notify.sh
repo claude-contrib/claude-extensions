@@ -5,7 +5,7 @@
 # DESCRIPTION:
 #   Sends native macOS Notification Center alerts when Claude Code completes
 #   a task or needs attention. Uses terminal-notifier for click-to-focus
-#   support via focus.scpt.
+#   support via focus.sh.
 #
 # DEPENDENCY:
 #   terminal-notifier (brew install terminal-notifier)
@@ -135,7 +135,8 @@ _send_notification() {
   tmux_bin="$(command -v tmux 2>/dev/null || true)"
 
   local focus_command
-  focus_command="${scripts_dir}/focus.sh $tmux_bin $tmux_session $tmux_window $tmux_client"
+  printf -v focus_command '%q ' "${scripts_dir}/focus.sh" "$tmux_bin" "$tmux_session" "$tmux_window" "$tmux_client"
+  focus_command="${focus_command% }"
 
   local notify_args=(-title "$title" -subtitle "$subtitle" -message " " -group "claude-code" -execute "$focus_command")
   if [[ -n "$sound" ]]; then
@@ -145,44 +146,29 @@ _send_notification() {
   terminal-notifier "${notify_args[@]}"
 }
 
-# Handle a Stop event
-_handle_stop() {
-  local project="$1"
-  local branch="$2"
-  local tmux_session="$3"
-  local tmux_window="$4"
-  local tmux_client="$5"
+# Handle a Stop or Notification event
+_handle_event() {
+  local event="$1"
+  local project="$2"
+  local branch="$3"
+  local tmux_session="$4"
+  local tmux_window="$5"
+  local tmux_client="$6"
 
-  local subtitle="Task complete"
-  if [[ -n "$branch" ]]; then
-    subtitle="Task complete — ${branch}"
-  fi
-
-  local sound=""
-  if _sound_enabled; then
+  local subtitle sound
+  case "$event" in
+  Stop)
+    subtitle="Task complete"
     sound="Glass"
-  fi
-
-  _send_notification "$project" "$subtitle" "$sound" "$tmux_session" "$tmux_window" "$tmux_client"
-}
-
-# Handle a Notification event
-_handle_notification() {
-  local project="$1"
-  local branch="$2"
-  local tmux_session="$3"
-  local tmux_window="$4"
-  local tmux_client="$5"
-
-  local subtitle="Needs your input"
-  if [[ -n "$branch" ]]; then
-    subtitle="Needs your input — ${branch}"
-  fi
-
-  local sound=""
-  if _sound_enabled; then
+    ;;
+  Notification)
+    subtitle="Needs your input"
     sound="Ping"
-  fi
+    ;;
+  esac
+
+  if [[ -n "$branch" ]]; then subtitle="${subtitle} — ${branch}"; fi
+  if ! _sound_enabled; then sound=""; fi
 
   _send_notification "$project" "$subtitle" "$sound" "$tmux_session" "$tmux_window" "$tmux_client"
 }
@@ -218,11 +204,8 @@ main() {
   fi
 
   case "$event_name" in
-  Stop)
-    _handle_stop "$project" "$branch" "$tmux_session" "$tmux_window" "$tmux_client"
-    ;;
-  Notification)
-    _handle_notification "$project" "$branch" "$tmux_session" "$tmux_window" "$tmux_client"
+  Stop | Notification)
+    _handle_event "$event_name" "$project" "$branch" "$tmux_session" "$tmux_window" "$tmux_client"
     ;;
   esac
 }
