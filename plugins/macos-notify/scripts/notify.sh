@@ -27,6 +27,7 @@
 #   Non-zero - Notification command error
 
 set -euo pipefail
+[ -z "${DEBUG:-}" ] || set -x
 
 # Read tmux option with fallback default
 _tmux_option() {
