@@ -14,7 +14,7 @@ Extensions are **passive plugins** — they don't require invocation:
 
 | Type | Trigger | Example |
 |------|---------|---------|
-| **Hooks** | Claude Code events (`SessionStart`, `PreToolUse`, `PostToolUse`) | Sync rules on startup, lint after edits |
+| **Hooks** | Claude Code events (`SessionStart`, `Stop`, `Notification`, …) | Sync rules on startup, notify on completion |
 | **Context rules** | Path patterns | Inject team conventions scoped to `src/api/**` |
 
 Install once. Works on every future session automatically.
@@ -49,6 +49,7 @@ That's it — the extension activates on your next session start.
 | Extension | Description |
 |-----------|-------------|
 | [`agents-context`](plugins/agents-context/README.md) | Automatically syncs [AGENTS.md](https://agents.md/) files into Claude Code path-specific rules on every session start |
+| [`tmux-notify`](plugins/tmux-notify/README.md) | tmux notifications for Claude Code — bell, display-message, and auto-focus |
 
 ## Publish Your Own Extension
 
