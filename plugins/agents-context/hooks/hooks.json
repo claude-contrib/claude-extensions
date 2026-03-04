@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/sync.sh",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/sync.agent.sh",
             "timeout": 30
           }
         ]
