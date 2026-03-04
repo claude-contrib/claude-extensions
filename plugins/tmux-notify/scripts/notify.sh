@@ -34,15 +34,15 @@ set -euo pipefail
 # Returns:
 #   Prints the option value or default
 _tmux_option() {
-  local option="$1"
-  local default="$2"
-  local value
-  value="$(tmux show-option -gv "$option" 2>/dev/null || true)"
-  if [[ -z "$value" ]]; then
-    echo "$default"
-  else
-    echo "$value"
-  fi
+	local option="$1"
+	local default="$2"
+	local value
+	value="$(tmux show-option -gv "$option" 2>/dev/null || true)"
+	if [[ -z "$value" ]]; then
+		echo "$default"
+	else
+		echo "$value"
+	fi
 }
 
 # Extract a string field from the JSON event_args
@@ -56,68 +56,68 @@ _tmux_option() {
 # Returns:
 #   Prints the field value, or empty string if not present
 _json_field() {
-  local field="$1"
-  local json="$2"
-  if command -v jq &>/dev/null; then
-    printf '%s' "$json" | jq -r --arg f "$field" '.[$f] // empty'
-  else
-    printf '%s' "$json" | sed -n "s/.*\"${field}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
-  fi
+	local field="$1"
+	local json="$2"
+	if command -v jq &>/dev/null; then
+		printf '%s' "$json" | jq -r --arg f "$field" '.[$f] // empty'
+	else
+		printf '%s' "$json" | sed -n "s/.*\"${field}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
+	fi
 }
 
 # Prints the current tmux session ID
 _tmux_current_session() {
-  tmux display-message -p "#{session_id}"
+	tmux display-message -p "#{session_id}"
 }
 
 # Prints the currently active tmux window ID
 _tmux_active_window() {
-  tmux display-message -p "#{window_id}"
+	tmux display-message -p "#{window_id}"
 }
 
 # Prints the currently active tmux pane ID
 _tmux_active_pane() {
-  tmux display-message -p "#{pane_id}"
+	tmux display-message -p "#{pane_id}"
 }
 
 # Prints the TTY device path of Claude's pane
 _tmux_pane_tty() {
-  tmux display-message -p -t "${TMUX_PANE}" "#{pane_tty}"
+	tmux display-message -p -t "${TMUX_PANE}" "#{pane_tty}"
 }
 
 # Prints the session ID of Claude's pane
 _tmux_pane_session() {
-  tmux display-message -p -t "${TMUX_PANE}" "#{session_id}"
+	tmux display-message -p -t "${TMUX_PANE}" "#{session_id}"
 }
 
 # Prints the window ID of Claude's pane
 _tmux_pane_window() {
-  tmux display-message -p -t "${TMUX_PANE}" "#{window_id}"
+	tmux display-message -p -t "${TMUX_PANE}" "#{window_id}"
 }
 
 # Prints the window name of Claude's pane
 _tmux_pane_window_name() {
-  tmux display-message -p -t "${TMUX_PANE}" "#{window_name}"
+	tmux display-message -p -t "${TMUX_PANE}" "#{window_name}"
 }
 
 # Returns 0 if @claude-notify-bell is enabled
 _tmux_bell_enabled() {
-  [[ "$(_tmux_option "@claude-notify-bell" "on")" == "on" ]]
+	[[ "$(_tmux_option "@claude-notify-bell" "on")" == "on" ]]
 }
 
 # Returns 0 if @claude-notify-message is enabled
 _tmux_display_message_enabled() {
-  [[ "$(_tmux_option "@claude-notify-message" "off")" == "on" ]]
+	[[ "$(_tmux_option "@claude-notify-message" "off")" == "on" ]]
 }
 
 # Returns 0 if @claude-notify-auto-focus is enabled
 _tmux_auto_focus_enabled() {
-  [[ "$(_tmux_option "@claude-notify-auto-focus" "off")" == "on" ]]
+	[[ "$(_tmux_option "@claude-notify-auto-focus" "off")" == "on" ]]
 }
 
 # Returns 0 if Claude's pane is the currently active pane
 _is_active_pane() {
-  [[ "$(_tmux_active_pane)" == "${TMUX_PANE:-}" ]]
+	[[ "$(_tmux_active_pane)" == "${TMUX_PANE:-}" ]]
 }
 
 # Send bell and display-message notifications
@@ -128,31 +128,31 @@ _is_active_pane() {
 # Args:
 #   $1 - Message text to show in display-message
 _notify() {
-  local text="$1"
+	local text="$1"
 
-  if _is_active_pane; then
-    return 0
-  fi
+	if _is_active_pane; then
+		return 0
+	fi
 
-  # Bell: write \a to the pane's TTY
-  if _tmux_bell_enabled; then
-    printf '\a' >"$(_tmux_pane_tty)" || true
-  fi
+	# Bell: write \a to the pane's TTY
+	if _tmux_bell_enabled; then
+		printf '\a' >"$(_tmux_pane_tty)" || true
+	fi
 
-  # Display-message: show message only when in the same session and Claude's window is not active
-  if _tmux_display_message_enabled; then
-    if [[ "$(_tmux_current_session)" == "$(_tmux_pane_session)" ]]; then
-      local active_window
-      active_window="$(_tmux_active_window)"
+	# Display-message: show message only when in the same session and Claude's window is not active
+	if _tmux_display_message_enabled; then
+		if [[ "$(_tmux_current_session)" == "$(_tmux_pane_session)" ]]; then
+			local active_window
+			active_window="$(_tmux_active_window)"
 
-      local claude_window
-      claude_window="$(_tmux_pane_window)"
+			local claude_window
+			claude_window="$(_tmux_pane_window)"
 
-      if [[ "$active_window" != "$claude_window" ]]; then
-        tmux display-message -l "$text"
-      fi
-    fi
-  fi
+			if [[ "$active_window" != "$claude_window" ]]; then
+				tmux display-message -l "$text"
+			fi
+		fi
+	fi
 }
 
 # Switch focus to Claude's pane
@@ -161,33 +161,33 @@ _notify() {
 # @claude-notify-auto-focus is on and the pane is not already active.
 # Uses a short delay to run after Claude Code finishes its UI update.
 _auto_focus() {
-  if _is_active_pane; then
-    return 0
-  fi
+	if _is_active_pane; then
+		return 0
+	fi
 
-  if _tmux_auto_focus_enabled; then
-    (sleep 0.5 && tmux select-pane -t "${TMUX_PANE}") &
-    disown
-  fi
+	if _tmux_auto_focus_enabled; then
+		(sleep 0.5 && tmux select-pane -t "${TMUX_PANE}") &
+		disown
+	fi
 }
 
 # Handle a Stop or Notification event
 _handle_event() {
-  local event="$1"
-  local window
-  window="$(_tmux_pane_window_name)"
+	local event="$1"
+	local window
+	window="$(_tmux_pane_window_name)"
 
-  local text
-  case "$event" in
-  Stop)
-    text="Claude [${window}]: done"
-    ;;
-  Notification)
-    text="Claude [${window}]: waiting"
-    ;;
-  esac
+	local text
+	case "$event" in
+	Stop)
+		text="Claude [${window}]: done"
+		;;
+	Notification)
+		text="Claude [${window}]: waiting"
+		;;
+	esac
 
-  _notify "$text"
+	_notify "$text"
 }
 
 # Main entry point
@@ -195,23 +195,23 @@ _handle_event() {
 # Guards against non-tmux environments, reads the event args from stdin,
 # dispatches to the appropriate event handler, then runs auto-focus.
 main() {
-  if [[ -z "${TMUX:-}" ]] || [[ -z "${TMUX_PANE:-}" ]]; then
-    exit 0
-  fi
+	if [[ -z "${TMUX:-}" ]] || [[ -z "${TMUX_PANE:-}" ]]; then
+		exit 0
+	fi
 
-  local event_args
-  event_args="$(cat)"
+	local event_args
+	event_args="$(cat)"
 
-  local event_name
-  event_name="$(_json_field "hook_event_name" "$event_args")"
+	local event_name
+	event_name="$(_json_field "hook_event_name" "$event_args")"
 
-  case "$event_name" in
-  Stop | Notification)
-    _handle_event "$event_name"
-    ;;
-  esac
+	case "$event_name" in
+	Stop | Notification)
+		_handle_event "$event_name"
+		;;
+	esac
 
-  _auto_focus
+	_auto_focus
 }
 
 main "$@"

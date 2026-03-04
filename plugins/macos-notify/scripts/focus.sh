@@ -24,5 +24,5 @@ osascript "${SCRIPTS_DIR}/focus.scpt" "$TERM_PROGRAM"
 
 # Switch the tmux client to the correct window
 if [[ -n "$TMUX_CLIENT" ]] && [[ -n "$TMUX_SESSION" ]] && [[ -n "$TMUX_WINDOW" ]]; then
-  "$TMUX_BIN" switch-client -c "$TMUX_CLIENT" -t "${TMUX_SESSION}:${TMUX_WINDOW}"
+	"$TMUX_BIN" switch-client -c "$TMUX_CLIENT" -t "${TMUX_SESSION}:${TMUX_WINDOW}"
 fi
