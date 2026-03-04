@@ -1,6 +1,6 @@
 {
   "name": "tmux-notify",
-  "version": "1.0.0",
+  "version": "1.3.1",
   "description": "tmux notifications for Claude Code — bell, display-message, and auto-focus",
   "author": {
     "name": "claude-contrib",
@@ -10,5 +10,11 @@
   "homepage": "https://github.com/claude-contrib/claude-extensions",
   "repository": "https://github.com/claude-contrib/claude-extensions",
   "license": "MIT",
-  "keywords": ["tmux", "notification", "bell", "focus", "background"]
+  "keywords": [
+    "tmux",
+    "notification",
+    "bell",
+    "focus",
+    "background"
+  ]
 }

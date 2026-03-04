@@ -6,13 +6,13 @@
   },
   "metadata": {
     "description": "A curated collection of Claude Code extensions — hooks, context rules, and session automation",
-    "version": "1.3.0"
+    "version": "1.3.1"
   },
   "plugins": [
     {
       "name": "agents-context",
       "description": "Bring Agents.md to Claude Code",
-      "version": "1.0.0",
+      "version": "1.3.1",
       "author": {
         "name": "claude-contrib"
       },
@@ -33,7 +33,7 @@
     {
       "name": "tmux-notify",
       "description": "tmux notifications for Claude Code — bell, display-message, and auto-focus",
-      "version": "1.0.0",
+      "version": "1.3.1",
       "author": {
         "name": "claude-contrib"
       },
@@ -56,7 +56,7 @@
     {
       "name": "macos-notify",
       "description": "Native macOS Notification Center alerts for Claude Code — notifies when Claude needs input or completes a task",
-      "version": "1.0.0",
+      "version": "1.3.1",
       "author": {
         "name": "claude-contrib"
       },
