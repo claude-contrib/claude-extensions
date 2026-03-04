@@ -1,0 +1,14 @@
+{
+  "name": "macos-notify",
+  "version": "1.0.0",
+  "description": "macOS Notification Center alerts for Claude Code — notifies when Claude needs input or completes a task",
+  "author": {
+    "name": "claude-contrib",
+    "email": "claude-contrib@github.com",
+    "url": "https://github.com/claude-contrib"
+  },
+  "homepage": "https://github.com/claude-contrib/claude-extensions",
+  "repository": "https://github.com/claude-contrib/claude-extensions",
+  "license": "MIT",
+  "keywords": ["macos", "notification", "focus", "terminal", "background"]
+}
