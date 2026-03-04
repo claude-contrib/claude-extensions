@@ -2,7 +2,7 @@
 
 A curated collection of Claude Code extensions — hooks, context rules, and session automation.
 
-[![Validate Plugins](https://github.com/claude-contrib/claude-extensions/actions/workflows/validate-plugins.yml/badge.svg)](https://github.com/claude-contrib/claude-extensions/actions/workflows/validate-plugins.yml)
+[![Plugins](https://github.com/claude-contrib/claude-extensions/actions/workflows/validate.yml/badge.svg)](https://github.com/claude-contrib/claude-extensions/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## What are Extensions?
