@@ -1,4 +1,4 @@
-name: Plugins
+name: Validate
 
 on:
   push:
