@@ -1,10 +1,11 @@
 {
-  "name": "extra-plugins",
+  "name": "claude-extensions",
   "owner": {
-    "name": "claude-contrib"
+    "name": "claude-contrib",
+    "email": "claude-contrib@github.com"
   },
   "metadata": {
-    "description": "A curated collection of Claude Code plugins for our team",
+    "description": "A curated collection of Claude Code extensions — hooks, context rules, and session automation",
     "version": "1.0.0"
   },
   "plugins": [
@@ -17,8 +18,8 @@
       },
       "source": "./plugins/agents-context",
       "category": "context",
-      "tags": ["agents.md"],
-      "keywords": ["agents.md"]
+      "tags": ["agents.md", "context", "rules"],
+      "keywords": ["agents.md", "context", "rules", "path-specific"]
     }
   ]
 }
