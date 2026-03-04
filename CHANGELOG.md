@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/claude-contrib/claude-extensions/compare/v1.3.0...v1.3.1) (2026-03-04)
+
+
+### Bug Fixes
+
+* trigger version bump to 1.3.1 ([16af0e9](https://github.com/claude-contrib/claude-extensions/commit/16af0e985224a3c458a2457d3bdfe3eaae21fec0))
+
 ## [1.3.0](https://github.com/claude-contrib/claude-extensions/compare/v1.2.0...v1.3.0) (2026-03-04)
 
 
