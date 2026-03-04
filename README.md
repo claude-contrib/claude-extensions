@@ -3,6 +3,7 @@
 > Hooks, context rules, and session automation for [Claude Code](https://claude.ai/code) — applied automatically, every session, zero extra prompts.
 
 [![Validate](https://github.com/claude-contrib/claude-extensions/actions/workflows/validate.yml/badge.svg)](https://github.com/claude-contrib/claude-extensions/actions/workflows/validate.yml)
+[![Release](https://img.shields.io/github/v/release/claude-contrib/claude-extensions)](https://github.com/claude-contrib/claude-extensions/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Stop repeating project conventions to Claude. Extensions encode your team's rules, automate session setup, and react to tool events — passively, in the background, without you lifting a finger.
