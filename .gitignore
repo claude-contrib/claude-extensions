@@ -49,3 +49,7 @@ temp/
 *.zip
 *.tar.gz
 *.rar
+
+# Claude
+.claude/sessions
+.claude/worktrees
