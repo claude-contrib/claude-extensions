@@ -17,6 +17,9 @@
 #      - Adds YAML frontmatter with path patterns
 #      - Preserves original content
 #      - Writes to .claude/rules/agents/ with mirrored directory structure
+#      - Skips writing if content is unchanged (idempotent on repeated runs)
+#   4. Removes rule files whose source AGENTS.md no longer exists (orphan cleanup)
+#   5. Prunes empty directories left behind by orphan removal
 #
 # EXAMPLES:
 #   Input:  /repo/AGENTS.md
@@ -143,12 +146,19 @@ _generate_rule_file_content() {
 # a Claude Code path-specific rule. Creates necessary directories, calculates
 # paths, generates frontmatter, and writes the final rule file.
 #
+# Skips writing if the target already contains identical content (avoids
+# unnecessary I/O on every SessionStart when files haven't changed).
+#
 # Args:
 #   $1 - Absolute path to the source AGENTS.md file
 #
+# Output:
+#   Prints the absolute path of the target rule file (used by main for orphan
+#   detection).
+#
 # Side Effects:
 #   Creates directory structure under .claude/rules/agents/
-#   Creates the transformed AGENTS.md file with YAML frontmatter
+#   Creates or updates the transformed AGENTS.md file with YAML frontmatter
 #
 # Example:
 #   _create_rule_file "/repo/src/api/AGENTS.md"
@@ -180,7 +190,18 @@ _create_rule_file() {
 	local rule_body
 	rule_body="$(cat "$source_file")"
 
-	_generate_rule_file_content "$target_file" "$rule_header" "$rule_body"
+	# Write to a temp file then compare — skip if content is unchanged
+	local tmp_file
+	tmp_file="$(mktemp)"
+	_generate_rule_file_content "$tmp_file" "$rule_header" "$rule_body"
+
+	if [[ -f "$target_file" ]] && cmp -s "$tmp_file" "$target_file"; then
+		rm "$tmp_file"
+	else
+		mv "$tmp_file" "$target_file"
+	fi
+
+	echo "$target_file"
 }
 
 # Find AGENTS.md files using git ls-files (efficient, respects .gitignore)
@@ -259,26 +280,26 @@ _find_agents_files_find() {
 # Main execution function
 #
 # Entry point of the script. Orchestrates the complete sync process:
-# 1. Cleans the existing rules directory
+# 1. Ensures the rules output directory exists
 # 2. Detects if running in a git repository
 # 3. Finds all AGENTS.md files (using git or find)
-# 4. Transforms each file into a Claude Code rule
+# 4. Transforms each file into a Claude Code rule (skipping unchanged files)
+# 5. Removes orphaned rule files whose source AGENTS.md no longer exists
+# 6. Prunes empty directories left behind by orphan removal
 #
 # Side Effects:
-#   - Removes and recreates $CLAUD_RULES_DIR
-#   - Creates transformed AGENTS.md files with YAML frontmatter
+#   - Creates $CLAUDE_RULES_DIR if it does not exist
+#   - Creates/updates transformed AGENTS.md files with YAML frontmatter
+#   - Removes rule files that no longer have a corresponding source
 #
 # Environment Variables:
 #   GIT_REPOSITORY_DIR - Set by script to repository root or pwd
-#   CLAUD_RULES_DIR - Set by script to .claude/rules/agents
+#   CLAUDE_RULES_DIR - Set by script to .claude/rules/agents
 #
 # Exit Codes:
 #   0 - Success
 #   Non-zero - Error (via set -e)
 main() {
-	# Remove the rules directory
-	rm -fr "$CLAUDE_RULES_DIR"
-	# Create the rules directory
 	mkdir -p "$CLAUDE_RULES_DIR"
 
 	local agents_file_list=()
@@ -291,10 +312,23 @@ main() {
 		_find_agents_files_find agents_file_list
 	fi
 
-	# Process each file
+	# Process each source file; collect the target paths that should exist
+	local processed_targets=()
 	for agents_file in "${agents_file_list[@]}"; do
-		_create_rule_file "$agents_file"
+		processed_targets+=("$(_create_rule_file "$agents_file")")
 	done
+
+	# Remove orphaned target files (source AGENTS.md was deleted)
+	while IFS= read -r -d '' existing_target; do
+		local keep=0
+		for t in "${processed_targets[@]}"; do
+			[[ "$t" == "$existing_target" ]] && keep=1 && break
+		done
+		[[ $keep -eq 0 ]] && rm "$existing_target"
+	done < <(find "$CLAUDE_RULES_DIR" -type f -name "AGENTS.md" -print0 2>/dev/null)
+
+	# Prune empty directories left behind by orphan removal
+	find "$CLAUDE_RULES_DIR" -mindepth 1 -type d -empty -delete 2>/dev/null || true
 }
 
 main "$@"
