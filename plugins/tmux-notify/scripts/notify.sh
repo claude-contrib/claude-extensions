@@ -166,7 +166,7 @@ _auto_focus() {
 	fi
 
 	if _tmux_auto_focus_enabled; then
-		(sleep 0.2 && tmux select-pane -t "${TMUX_PANE}") &
+		(sleep 0.5 && tmux select-pane -t "${TMUX_PANE}") &
 		disown
 	fi
 }
