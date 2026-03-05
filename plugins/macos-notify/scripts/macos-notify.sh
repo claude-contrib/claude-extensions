@@ -15,9 +15,9 @@
 #
 # TMUX OPTIONS (set via tmux set-option -g <option> <value>):
 #   @claude-notify-terminal  ghostty  - Terminal identifier (e.g. "ghostty", "iTerm.app").
-#                                           Required when running inside tmux, where $TERM_PROGRAM
-#                                           is "tmux" rather than the outer terminal app.
-#   @claude-notify-sound         on       - Play a sound with the notification
+#                                       Required when running inside tmux, where $TERM_PROGRAM
+#                                       is "tmux" rather than the outer terminal app.
+#   @claude-notify-sound     on        - Play a sound with the notification
 #
 # STDIN (JSON from Claude Code):
 #   hook_event_name  - "Notification"
@@ -106,6 +106,21 @@ _tmux_client_tty() {
 	tmux display-message -p "#{client_tty}" 2>/dev/null || true
 }
 
+# Prints the currently active tmux session ID
+_tmux_active_session_id() {
+	tmux display-message -p "#{session_id}" 2>/dev/null || true
+}
+
+# Prints the currently active tmux window ID
+_tmux_active_window_id() {
+	tmux display-message -p "#{window_id}" 2>/dev/null || true
+}
+
+# Prints the session ID of Claude's pane
+_tmux_pane_session_id() {
+	tmux display-message -p -t "${TMUX_PANE}" "#{session_id}" 2>/dev/null || true
+}
+
 # ---------------------------------------------------------------------------
 # Config predicates
 # ---------------------------------------------------------------------------
@@ -113,6 +128,38 @@ _tmux_client_tty() {
 # Returns 0 if @claude-notify-sound is enabled
 _tmux_sound_enabled() {
 	[[ "$(_tmux_option "@claude-notify-sound" "on")" == "on" ]]
+}
+
+# ---------------------------------------------------------------------------
+# State predicates
+# ---------------------------------------------------------------------------
+
+# Returns 0 if the active tmux session and window match Claude's pane.
+_tmux_is_active_window() {
+	[[ "$(_tmux_active_session_id)" == "$(_tmux_pane_session_id)" ]] &&
+		[[ "$(_tmux_active_window_id)" == "$(_tmux_window_id)" ]]
+}
+
+# Returns 0 if the configured terminal app is the frontmost macOS application.
+_macos_is_terminal_focused() {
+	local term_program
+	term_program="$(_tmux_option "@claude-notify-terminal" "ghostty")"
+
+	local app_name
+	case "$term_program" in
+	Apple_Terminal) app_name="Terminal" ;;
+	iTerm.app) app_name="iTerm2" ;;
+	alacritty) app_name="Alacritty" ;;
+	WezTerm) app_name="WezTerm" ;;
+	kitty) app_name="kitty" ;;
+	ghostty) app_name="Ghostty" ;;
+	*) return 1 ;;
+	esac
+
+	local frontmost
+	frontmost="$(osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true' 2>/dev/null || true)"
+
+	[[ "$frontmost" == "$app_name" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -148,7 +195,7 @@ _git_branch() {
 }
 
 # ---------------------------------------------------------------------------
-# Notification action
+# Notification actions
 # ---------------------------------------------------------------------------
 
 # Build the shell-quoted focus command string passed to terminal-notifier -execute.
@@ -212,16 +259,19 @@ _notify_alert() {
 
 # Handle a Notification event
 _handle_event() {
+	if _macos_is_terminal_focused; then
+		if [[ -z "${TMUX:-}" ]] || _tmux_is_active_window; then
+			return 0
+		fi
+	fi
+
 	local alert_title
 	alert_title="$(_project_name)"
 
-	local alert_subtitle
-	alert_subtitle="Claude needs your input"
+	local alert_subtitle="Claude needs your input"
 
-	local alert_sound
-	if _tmux_sound_enabled; then
-		alert_sound="Ping"
-	else
+	local alert_sound="Ping"
+	if ! _tmux_sound_enabled; then
 		alert_sound=""
 	fi
 
