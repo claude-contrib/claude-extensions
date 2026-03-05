@@ -10,13 +10,13 @@
   },
   "plugins": [
     {
-      "name": "agents-context",
+      "name": "agent-rules",
       "description": "Bring Agents.md to Claude Code",
       "version": "1.3.1",
       "author": {
         "name": "claude-contrib"
       },
-      "source": "./plugins/agents-context",
+      "source": "./plugins/agent-rules",
       "category": "context",
       "tags": [
         "agents.md",

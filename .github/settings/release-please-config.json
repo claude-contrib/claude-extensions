@@ -12,20 +12,20 @@
         }
       ]
     },
-    "plugins/agents-context": {
+    "plugins/agent-rules": {
       "release-type": "simple",
-      "component": "agents-context",
+      "component": "agent-rules",
       "skip-github-release": true,
       "extra-files": [
         {
           "type": "json",
-          "path": "plugins/agents-context/.claude-plugin/plugin.json",
+          "path": "plugins/agent-rules/.claude-plugin/plugin.json",
           "jsonpath": "$.version"
         },
         {
           "type": "json",
           "path": ".claude-plugin/marketplace.json",
-          "jsonpath": "$.plugins[?(@.name=='agents-context')].version"
+          "jsonpath": "$.plugins[?(@.name=='agent-rules')].version"
         }
       ]
     },

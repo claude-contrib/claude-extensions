@@ -1,10 +1,10 @@
-# agents-context
+# agent-rules
 
 > Automatically sync [AGENTS.md](https://agents.md/) files into Claude Code path-specific rules — no manual setup, no copy-paste.
 
 ## What it does
 
-Claude Code has a native [path-specific rules](https://code.claude.com/docs/en/memory#path-specific-rules) system that injects context based on which files you're editing. `agents-context` bridges the popular `AGENTS.md` convention to that system automatically.
+Claude Code has a native [path-specific rules](https://code.claude.com/docs/en/memory#path-specific-rules) system that injects context based on which files you're editing. `agent-rules` bridges the popular `AGENTS.md` convention to that system automatically.
 
 On every session start it:
 1. Finds all `AGENTS.md` files in your repository (respects `.gitignore`)
@@ -15,7 +15,7 @@ On every session start it:
 ## Installation
 
 ```
-/plugin install agents-context@claude-extensions
+/plugin install agent-rules@claude-extensions
 ```
 
 After installing, add the generated directory to your `.gitignore` — the files are auto-generated and shouldn't be committed:

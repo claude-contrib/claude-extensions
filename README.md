@@ -40,7 +40,7 @@ Install once. Works on every future session automatically.
 **2. Install an extension** inside Claude Code:
 
 ```
-/plugin install agents-context@claude-extensions
+/plugin install agent-rules@claude-extensions
 ```
 
 That's it — the extension activates on your next session start.
@@ -49,7 +49,7 @@ That's it — the extension activates on your next session start.
 
 | Extension | Description |
 |-----------|-------------|
-| [`agents-context`](plugins/agents-context/README.md) | Automatically syncs [AGENTS.md](https://agents.md/) files into Claude Code path-specific rules on every session start |
+| [`agent-rules`](plugins/agent-rules/README.md) | Automatically syncs [AGENTS.md](https://agents.md/) files into Claude Code path-specific rules on every session start |
 | [`tmux-notify`](plugins/tmux-notify/README.md) | tmux notifications for Claude Code — bell, display-message, and auto-focus |
 | [`macos-notify`](plugins/macos-notify/README.md) | Native macOS Notification Center alerts with click-to-focus when Claude needs your input |
 
