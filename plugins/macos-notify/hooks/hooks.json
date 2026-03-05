@@ -1,0 +1,27 @@
+{
+  "description": "Send macOS Notification Center alerts when Claude needs attention",
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "permission_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/macos-notify.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "elicitation_dialog",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/macos-notify.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
