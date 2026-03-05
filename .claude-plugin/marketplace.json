@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "A curated collection of Claude Code extensions — hooks, context rules, and session automation",
-    "version": "1.3.1"
+    "version": "1.4.0"
   },
   "plugins": [
     {

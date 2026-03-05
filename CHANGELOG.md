@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.4.0](https://github.com/claude-contrib/claude-extensions/compare/v1.3.1...v1.4.0) (2026-03-05)
+
+
+### Features
+
+* **macos-notify:** suppress notification when user is already looking at Claude ([c90e708](https://github.com/claude-contrib/claude-extensions/commit/c90e70802e795b65dfdf8a9879eb4816ef27f8a1))
+* **tests:** add BATS test suite with Nix dev environment and CI ([ba75c5e](https://github.com/claude-contrib/claude-extensions/commit/ba75c5ed3eb289c4b2244c77d1373d3d4c8f008d))
+
+
+### Bug Fixes
+
+* address deep code review findings ([7a98cff](https://github.com/claude-contrib/claude-extensions/commit/7a98cfffec5569d54bf05f88272a6c9d6929a1c3))
+* **macos-notify:** focus terminal correctly when app is in fullscreen ([9cf7722](https://github.com/claude-contrib/claude-extensions/commit/9cf772283c75c45c48f2dd480586496d69f0332e))
+* **tmux-notify:** address tech debt — version sync, docs, debug logging ([877be86](https://github.com/claude-contrib/claude-extensions/commit/877be86bca23db4ee29dc798eccfa4b655c222d6))
+
+
+### Performance Improvements
+
+* **tmux-notify:** reduce auto-focus sleep from 0.5s to 0.25s ([2750f0c](https://github.com/claude-contrib/claude-extensions/commit/2750f0c44dd2a6b6c387045e05694fd97d189990))
+
 ## [1.3.1](https://github.com/claude-contrib/claude-extensions/compare/v1.3.0...v1.3.1) (2026-03-04)
 
 
