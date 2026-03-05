@@ -177,7 +177,7 @@ _notify_alert() {
 	tmux_bin="$(command -v tmux 2>/dev/null || true)"
 
 	local focus_command
-	printf -v focus_command '%q ' "${scripts_dir}/focus.sh" "$tmux_bin" "$tmux_session" "$tmux_window" "$tmux_client"
+	printf -v focus_command '%q ' "${scripts_dir}/macos-focus.sh" "$tmux_bin" "$tmux_session" "$tmux_window" "$tmux_client"
 	focus_command="${focus_command% }"
 
 	local notify_args=(-title "$title" -subtitle "$subtitle" -message " " -group "claude-code" -execute "$focus_command")

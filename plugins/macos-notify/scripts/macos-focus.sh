@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# focus.sh — activate terminal app and navigate to the tmux window
+# macos-focus.sh — activate terminal app and navigate to the tmux window
 #
 # Args:
 #   $1 - path to tmux binary
@@ -20,7 +20,7 @@ TERM_PROGRAM="$("$TMUX_BIN" show-option -gv "@claude-notify-term-program" 2>/dev
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Activate the terminal app
-osascript "${SCRIPTS_DIR}/focus.scpt" "$TERM_PROGRAM"
+osascript "${SCRIPTS_DIR}/macos-focus.scpt" "$TERM_PROGRAM"
 
 # Switch the tmux client to the correct window
 if [[ -n "$TMUX_CLIENT" ]] && [[ -n "$TMUX_SESSION" ]] && [[ -n "$TMUX_WINDOW" ]]; then
