@@ -1,6 +1,6 @@
 {
-  ".": "1.0.0",
-  "plugins/agent-rules": "1.0.0",
-  "plugins/tmux-notify": "1.0.0",
-  "plugins/macos-notify": "1.0.0"
+  ".": "1.1.0",
+  "plugins/agent-rules": "1.1.0",
+  "plugins/tmux-notify": "1.1.0",
+  "plugins/macos-notify": "1.1.0"
 }
