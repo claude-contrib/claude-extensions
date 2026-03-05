@@ -189,8 +189,8 @@ _notify_message() {
 _notify_focus() {
 	if _tmux_auto_focus_enabled; then
 		# 0.5s delay gives Claude Code time to finish its terminal UI update
-		# before we switch panes. 0.2s was tried and caused visible flicker.
-		(sleep 0.5 && tmux select-pane -t "${TMUX_PANE}") &
+		# before we switch panes. The threshold has not been measured.
+		(sleep 0.25 && tmux select-pane -t "${TMUX_PANE}") &
 		disown
 	fi
 }
