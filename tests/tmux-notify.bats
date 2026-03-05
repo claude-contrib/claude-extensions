@@ -166,13 +166,13 @@ _load() {
 
 @test "_check_dependencies: exits 0 when TMUX is not set" {
 	_load
-	run bash -c "TMUX='' TMUX_PANE='' source '$SCRIPT'"
+	TMUX="" TMUX_PANE="" run _check_dependencies
 	[ "$status" -eq 0 ]
 }
 
 @test "_check_dependencies: exits 0 when TMUX_PANE is not set" {
 	_load
-	run bash -c "TMUX='something' TMUX_PANE='' source '$SCRIPT'"
+	TMUX="something" TMUX_PANE="" run _check_dependencies
 	[ "$status" -eq 0 ]
 }
 

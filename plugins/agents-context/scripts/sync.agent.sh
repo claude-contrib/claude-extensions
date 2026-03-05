@@ -38,7 +38,7 @@
 # DESIGNED FOR:
 #   Claude Code SessionStart hook (runs silently on every session start)
 
-[ -z "$DEBUG" ] || set -x
+[ -z "${DEBUG:-}" ] || set -x
 
 set -euo pipefail
 
@@ -111,7 +111,6 @@ _generate_rule_file_header() {
 paths:
   - "${path_pattern}"
 ---
-
 EOF
 }
 
@@ -130,7 +129,7 @@ EOF
 #
 # Note:
 #   Command substitution strips trailing newlines, so we add them back with printf "%s\n\n"
-_generate_rule_file_content() {
+_write_rule_file() {
 	local target_file="$1"
 	local target_file_header="$2"
 	local target_file_body="$3"
@@ -193,7 +192,7 @@ _create_rule_file() {
 	# Write to a temp file then compare — skip if content is unchanged
 	local tmp_file
 	tmp_file="$(mktemp)"
-	_generate_rule_file_content "$tmp_file" "$rule_header" "$rule_body"
+	_write_rule_file "$tmp_file" "$rule_header" "$rule_body"
 
 	if [[ -f "$target_file" ]] && cmp -s "$tmp_file" "$target_file"; then
 		rm "$tmp_file"
@@ -331,4 +330,4 @@ main() {
 	find "$CLAUDE_RULES_DIR" -mindepth 1 -type d -empty -delete 2>/dev/null || true
 }
 
-main "$@"
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] || main "$@"

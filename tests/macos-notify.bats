@@ -221,9 +221,8 @@ _load() {
 	_notify_alert() { alert_sent=1; }
 	_project_name() { echo "owner/repo"; }
 	_tmux_sound_enabled() { return 0; }
-	result="$(TMUX="something" TMUX_PANE="%1" _handle_event)"
-	# Can't use alert_sent in subshell, so just verify it runs without error
-	[ "$?" -eq 0 ]
+	TMUX="something" TMUX_PANE="%1" _handle_event
+	[ "$alert_sent" -eq 1 ]
 }
 
 @test "_handle_event: omits sound when sound disabled" {
