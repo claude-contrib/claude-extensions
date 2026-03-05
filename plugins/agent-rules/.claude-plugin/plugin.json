@@ -1,0 +1,19 @@
+{
+  "name": "agent-rules",
+  "version": "1.0.0",
+  "description": "Bring Agents.md to Claude Code",
+  "author": {
+    "name": "claude-contrib",
+    "email": "claude-contrib@github.com",
+    "url": "https://github.com/claude-contrib"
+  },
+  "homepage": "https://github.com/claude-contrib/claude-extensions",
+  "repository": "https://github.com/claude-contrib/claude-extensions",
+  "license": "MIT",
+  "keywords": [
+    "agents.md",
+    "context",
+    "rules",
+    "path-specific"
+  ]
+}
