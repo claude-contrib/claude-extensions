@@ -1,0 +1,45 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-marketplace:
+    name: Validate Marketplace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - run: pip install check-jsonschema==0.31.3
+
+      - name: Validate marketplace.json
+        run: check-jsonschema --schemafile .github/schemas/marketplace.schema.json .claude-plugin/marketplace.json
+
+  validate-plugins:
+    name: Validate Plugins
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - run: pip install check-jsonschema==0.31.3
+
+      - name: Validate plugin.json files
+        run: check-jsonschema --schemafile .github/schemas/plugin.schema.json plugins/*/.claude-plugin/plugin.json
+
+      - name: Check each plugin listed in marketplace has a directory
+        run: .github/scripts/check-plugin-dirs.sh
+
+      - name: Check plugin.json versions match marketplace entries
+        run: .github/scripts/check-version-sync.sh
+
+  check-duplicates:
+    name: Check Duplicate Plugin Names
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check for duplicate plugin names
+        run: .github/scripts/check-duplicate-names.sh
