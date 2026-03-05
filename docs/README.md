@@ -129,21 +129,40 @@ To iterate: edit your files, then reinstall:
 /plugin install your-extension@claude-extensions
 ```
 
+## Running Tests
+
+The repo includes a BATS test suite for the hook scripts. Use the nix dev environment to get all dependencies (`bats`, `jq`, `tmux`, `shellcheck`):
+
+```bash
+nix develop
+bats tests/
+```
+
+Or in one step without entering the shell:
+
+```bash
+nix develop --command bats tests/
+```
+
 ## CI Validation
 
 Every pull request runs `.github/workflows/validate.yml` which checks:
 
-- `marketplace.json` is valid JSON with required fields (`name`, `owner`, `plugins`)
-- Each plugin entry has `name` and `source`
-- Each plugin directory exists
-- `plugin.json` is valid JSON with a `name` field
+- `marketplace.json` validates against `.github/schemas/marketplace.schema.json`
+- Each `plugin.json` validates against `.github/schemas/plugin.schema.json`
+- Each plugin directory referenced in `marketplace.json` exists
+- `plugin.json` versions match `marketplace.json` entries
 - No duplicate plugin names
 
-Run the same checks locally with `jq`:
+Run the same checks locally:
 
 ```bash
-jq empty .claude-plugin/marketplace.json
-jq empty plugins/your-extension/.claude-plugin/plugin.json
+pip install check-jsonschema
+check-jsonschema --schemafile .github/schemas/marketplace.schema.json .claude-plugin/marketplace.json
+check-jsonschema --schemafile .github/schemas/plugin.schema.json plugins/*/.claude-plugin/plugin.json
+.github/scripts/check-plugin-dirs.sh
+.github/scripts/check-version-sync.sh
+.github/scripts/check-duplicate-names.sh
 ```
 
 ## Official References

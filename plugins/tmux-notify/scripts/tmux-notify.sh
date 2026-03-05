@@ -188,7 +188,7 @@ _notify_message() {
 # Uses a short delay to run after Claude Code finishes its UI update.
 _notify_focus() {
 	if _tmux_auto_focus_enabled; then
-		# 0.5s delay gives Claude Code time to finish its terminal UI update
+		# 0.25s delay gives Claude Code time to finish its terminal UI update
 		# before we switch panes. The threshold has not been measured.
 		(sleep 0.25 && tmux select-pane -t "${TMUX_PANE}") &
 		disown

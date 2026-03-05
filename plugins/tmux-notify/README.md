@@ -79,7 +79,7 @@ Where `window` is the tmux window name of Claude's pane.
 
 ### Auto-focus
 
-Selects Claude's pane within its window via `tmux select-pane -t $TMUX_PANE`. Fires on both Stop and Notification events. Uses a short delay (0.5s) to run after Claude Code finishes its terminal UI update. Only affects the current window — it does not switch windows.
+Selects Claude's pane within its window via `tmux select-pane -t $TMUX_PANE`. Fires on both Stop and Notification events. Uses a short delay (0.25s) to run after Claude Code finishes its terminal UI update. Only affects the current window — it does not switch windows.
 
 ## Active pane detection
 
@@ -135,7 +135,7 @@ Also note that display-message only fires when you are in the same tmux session 
 
 ### Bell or message fires when Claude's pane is already focused
 
-This should not happen — the script skips all notifications when the active pane is Claude's pane. If you see this, run with `DEBUG=1` and check the output of the `_is_active_pane` check.
+This should not happen — the script skips all notifications when the active pane is Claude's pane. If you see this, run with `DEBUG=1` and check the output of the `_tmux_is_active_pane` check.
 
 ## Contributing
 

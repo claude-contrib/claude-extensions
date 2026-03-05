@@ -2,6 +2,7 @@
 
 > Hooks, context rules, and session automation for [Claude Code](https://claude.ai/code) — applied automatically, every session, zero extra prompts.
 
+[![Test](https://github.com/claude-contrib/claude-extensions/actions/workflows/test.yml/badge.svg)](https://github.com/claude-contrib/claude-extensions/actions/workflows/test.yml)
 [![Validate](https://github.com/claude-contrib/claude-extensions/actions/workflows/validate.yml/badge.svg)](https://github.com/claude-contrib/claude-extensions/actions/workflows/validate.yml)
 [![Release](https://img.shields.io/github/v/release/claude-contrib/claude-extensions)](https://github.com/claude-contrib/claude-extensions/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -50,6 +51,7 @@ That's it — the extension activates on your next session start.
 |-----------|-------------|
 | [`agents-context`](plugins/agents-context/README.md) | Automatically syncs [AGENTS.md](https://agents.md/) files into Claude Code path-specific rules on every session start |
 | [`tmux-notify`](plugins/tmux-notify/README.md) | tmux notifications for Claude Code — bell, display-message, and auto-focus |
+| [`macos-notify`](plugins/macos-notify/README.md) | Native macOS Notification Center alerts with click-to-focus when Claude needs your input |
 
 ## Publish Your Own Extension
 
