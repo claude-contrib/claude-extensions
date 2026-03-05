@@ -6,7 +6,7 @@ Everything you need to build and publish an extension.
 
 An extension is a Claude Code plugin that runs **passively** — it reacts to events or injects context automatically, without the user invoking a command. The two mechanisms are:
 
-- **Hooks** — shell commands triggered by Claude Code lifecycle events (`SessionStart`, `PreToolUse`, `PostToolUse`, `Notification`)
+- **Hooks** — shell commands triggered by Claude Code lifecycle events (`SessionStart`, `PreToolUse`, `PostToolUse`, `Stop`, `Notification`)
 - **Context rules** — markdown files scoped to path patterns, automatically loaded when Claude works in matching directories
 
 ## Plugin Structure
@@ -82,7 +82,8 @@ plugins/<your-extension>/
 | `SessionStart` | Claude Code session begins | `startup` |
 | `PreToolUse` | Before a tool call executes | `Write`, `Edit`, `Bash` (regex) |
 | `PostToolUse` | After a tool call completes | `Write`, `Edit`, `Bash` (regex) |
-| `Notification` | Claude emits a notification | notification type string |
+| `Stop` | Claude finishes responding | `*` |
+| `Notification` | Claude needs user attention | `permission_prompt`, `elicitation_dialog` |
 
 **`${CLAUDE_PLUGIN_ROOT}`** expands to the absolute path of your plugin directory at install time.
 

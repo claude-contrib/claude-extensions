@@ -25,6 +25,10 @@
 set -euo pipefail
 [ -z "${DEBUG:-}" ] || set -x
 
+# ---------------------------------------------------------------------------
+# Utilities
+# ---------------------------------------------------------------------------
+
 # Read tmux option with fallback default
 #
 # Args:
@@ -68,6 +72,10 @@ _json_field() {
 	fi
 }
 
+# ---------------------------------------------------------------------------
+# tmux state readers
+# ---------------------------------------------------------------------------
+
 # Prints the current tmux session ID
 _tmux_current_session() {
 	tmux display-message -p "#{session_id}"
@@ -103,13 +111,17 @@ _tmux_pane_window_name() {
 	tmux display-message -p -t "${TMUX_PANE}" "#{window_name}"
 }
 
+# ---------------------------------------------------------------------------
+# Config predicates
+# ---------------------------------------------------------------------------
+
 # Returns 0 if @claude-notify-bell is enabled
 _tmux_bell_enabled() {
 	[[ "$(_tmux_option "@claude-notify-bell" "on")" == "on" ]]
 }
 
 # Returns 0 if @claude-notify-message is enabled
-_tmux_display_message_enabled() {
+_tmux_message_enabled() {
 	[[ "$(_tmux_option "@claude-notify-message" "off")" == "on" ]]
 }
 
@@ -118,36 +130,44 @@ _tmux_auto_focus_enabled() {
 	[[ "$(_tmux_option "@claude-notify-auto-focus" "off")" == "on" ]]
 }
 
+# ---------------------------------------------------------------------------
+# State predicates
+# ---------------------------------------------------------------------------
+
 # Returns 0 if Claude's pane is the currently active pane
-_is_active_pane() {
+_tmux_is_active_pane() {
 	[[ "$(_tmux_active_pane)" == "${TMUX_PANE:-}" ]]
 }
 
-# Send bell and display-message notifications
-#
-# Applies the bell and display-message mechanisms according to the configured
-# tmux options. Skipped entirely when Claude's pane is already active.
-#
-# Args:
-#   $1 - Message text to show in display-message
-_notify() {
-	local text="$1"
+# Returns 0 if the current session is the same as Claude's pane session
+_tmux_is_active_session() {
+	[[ "$(_tmux_current_session)" == "$(_tmux_pane_session)" ]]
+}
 
-	if _is_active_pane; then
-		return 0
-	fi
+# ---------------------------------------------------------------------------
+# Notification actions
+# ---------------------------------------------------------------------------
 
-	# Bell: write \a to the pane's TTY
+# Write \a to the pane's TTY to trigger a visual/audible bell
+_notify_bell() {
 	if _tmux_bell_enabled; then
 		printf '\a' >"$(_tmux_pane_tty)" || {
 			[[ -z "${DEBUG:-}" ]] || echo "[tmux-notify] WARNING: failed to write bell to pane TTY" >&2
 			true
 		}
 	fi
+}
 
-	# Display-message: show message only when in the same session and Claude's window is not active
-	if _tmux_display_message_enabled; then
-		if [[ "$(_tmux_current_session)" == "$(_tmux_pane_session)" ]]; then
+# Show a display-message when Claude's window is inactive
+#
+# Only fires when in the same session as Claude and a different window is active.
+#
+# Args:
+#   $1 - Message text to show
+_notify_message() {
+	local text="$1"
+	if _tmux_message_enabled; then
+		if _tmux_is_active_session; then
 			local active_window
 			active_window="$(_tmux_active_window)"
 
@@ -166,11 +186,7 @@ _notify() {
 # Selects Claude's pane within the current window. Only acts when
 # @claude-notify-auto-focus is on and the pane is not already active.
 # Uses a short delay to run after Claude Code finishes its UI update.
-_auto_focus() {
-	if _is_active_pane; then
-		return 0
-	fi
-
+_notify_focus() {
 	if _tmux_auto_focus_enabled; then
 		# 0.5s delay gives Claude Code time to finish its terminal UI update
 		# before we switch panes. 0.2s was tried and caused visible flicker.
@@ -179,29 +195,41 @@ _auto_focus() {
 	fi
 }
 
+# ---------------------------------------------------------------------------
+# Event handler
+# ---------------------------------------------------------------------------
+
 # Handle a Stop or Notification event
 _handle_event() {
 	local event="$1"
+
+	if _tmux_is_active_pane; then
+		return 0
+	fi
+
+	_notify_bell
+
 	local window
 	window="$(_tmux_pane_window_name)"
 
-	local text
 	case "$event" in
 	Stop)
-		text="Claude [${window}]: done"
+		_notify_message "Claude [${window}]: done"
 		;;
 	Notification)
-		text="Claude [${window}]: waiting"
+		_notify_message "Claude [${window}]: waiting"
 		;;
 	esac
 
-	_notify "$text"
+	_notify_focus
 }
 
-# Main entry point
-#
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
 # Guards against non-tmux environments, reads the event args from stdin,
-# dispatches to the appropriate event handler, then runs auto-focus.
+# and dispatches to the appropriate event handler.
 main() {
 	if [[ -z "${TMUX:-}" ]] || [[ -z "${TMUX_PANE:-}" ]]; then
 		exit 0
@@ -218,8 +246,6 @@ main() {
 		_handle_event "$event_name"
 		;;
 	esac
-
-	_auto_focus
 }
 
 main "$@"
