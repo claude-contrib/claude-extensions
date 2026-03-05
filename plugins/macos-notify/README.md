@@ -51,7 +51,7 @@ Options are set via tmux session options:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `@claude-notify-terminal` | `Ghostty` | macOS application name for click-to-focus. Required when running inside tmux because `$TERM_PROGRAM` reports `tmux` rather than the outer terminal. |
+| `@claude-notify-terminal` | `Ghostty` | macOS application name used for focus detection and click-to-focus. Set this to the name of your terminal app (see table below). |
 | `@claude-notify-sound` | `on` | Play a sound (`Ping`) with each notification |
 
 Set options globally in your `~/.tmux.conf`:

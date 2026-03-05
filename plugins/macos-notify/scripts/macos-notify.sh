@@ -14,9 +14,8 @@
 #   Invoked automatically by Claude Code hooks on Notification events.
 #
 # TMUX OPTIONS (set via tmux set-option -g <option> <value>):
-#   @claude-notify-terminal  Ghostty  - macOS application name (e.g. "Ghostty", "iTerm2", "Terminal").
-#                                       Required when running inside tmux, where $TERM_PROGRAM
-#                                       is "tmux" rather than the outer terminal app.
+#   @claude-notify-terminal  Ghostty  - macOS application name used for focus detection and
+#                                       click-to-focus (e.g. "Ghostty", "iTerm2", "Terminal").
 #   @claude-notify-sound     on        - Play a sound with the notification
 #
 # STDIN (JSON from Claude Code):
