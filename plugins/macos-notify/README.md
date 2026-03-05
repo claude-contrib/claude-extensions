@@ -51,20 +51,20 @@ Options are set via tmux session options:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `@claude-notify-terminal` | `ghostty` | Terminal app identifier for click-to-focus. Required when running inside tmux because `$TERM_PROGRAM` reports `tmux` rather than the outer terminal. |
+| `@claude-notify-terminal` | `Ghostty` | macOS application name for click-to-focus. Required when running inside tmux because `$TERM_PROGRAM` reports `tmux` rather than the outer terminal. |
 | `@claude-notify-sound` | `on` | Play a sound (`Ping`) with each notification |
 
 Set options globally in your `~/.tmux.conf`:
 
 ```tmux
-set -g @claude-notify-terminal ghostty
+set -g @claude-notify-terminal Ghostty
 set -g @claude-notify-sound on
 ```
 
 Or at runtime:
 
 ```bash
-tmux set-option -g @claude-notify-terminal ghostty
+tmux set-option -g @claude-notify-terminal Ghostty
 tmux set-option -g @claude-notify-sound off
 ```
 
@@ -72,12 +72,12 @@ tmux set-option -g @claude-notify-sound off
 
 | Terminal | `@claude-notify-terminal` value |
 |----------|-------------------------------------|
-| Terminal.app | `Apple_Terminal` |
-| iTerm2 | `iTerm.app` |
-| Alacritty | `alacritty` |
+| Terminal.app | `Terminal` |
+| iTerm2 | `iTerm2` |
+| Alacritty | `Alacritty` |
 | WezTerm | `WezTerm` |
 | kitty | `kitty` |
-| Ghostty | `ghostty` (default) |
+| Ghostty | `Ghostty` (default) |
 
 ## Works alongside tmux-notify
 

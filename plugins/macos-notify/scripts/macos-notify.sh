@@ -14,7 +14,7 @@
 #   Invoked automatically by Claude Code hooks on Notification events.
 #
 # TMUX OPTIONS (set via tmux set-option -g <option> <value>):
-#   @claude-notify-terminal  ghostty  - Terminal identifier (e.g. "ghostty", "iTerm.app").
+#   @claude-notify-terminal  Ghostty  - macOS application name (e.g. "Ghostty", "iTerm2", "Terminal").
 #                                       Required when running inside tmux, where $TERM_PROGRAM
 #                                       is "tmux" rather than the outer terminal app.
 #   @claude-notify-sound     on        - Play a sound with the notification
@@ -142,22 +142,11 @@ _tmux_is_active_window() {
 
 # Returns 0 if the configured terminal app is the frontmost macOS application.
 _macos_is_terminal_focused() {
-	local term_program
-	term_program="$(_tmux_option "@claude-notify-terminal" "ghostty")"
-
 	local app_name
-	case "$term_program" in
-	Apple_Terminal) app_name="Terminal" ;;
-	iTerm.app) app_name="iTerm2" ;;
-	alacritty) app_name="Alacritty" ;;
-	WezTerm) app_name="WezTerm" ;;
-	kitty) app_name="kitty" ;;
-	ghostty) app_name="Ghostty" ;;
-	*) return 1 ;;
-	esac
+	app_name="$(_tmux_option "@claude-notify-terminal" "Ghostty")"
 
 	local frontmost
-	frontmost="$(osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true' 2>/dev/null || true)"
+	frontmost="$(osascript "$(_scripts_dir)/macos-active.scpt" 2>/dev/null || true)"
 
 	[[ "$frontmost" == "$app_name" ]]
 }

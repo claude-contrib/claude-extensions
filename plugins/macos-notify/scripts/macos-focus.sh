@@ -15,7 +15,7 @@ TMUX_SESSION="${2:-}"
 TMUX_WINDOW="${3:-}"
 TMUX_CLIENT="${4:-}"
 
-TERM_PROGRAM="$("$TMUX_BIN" show-option -gv "@claude-notify-terminal" 2>/dev/null || echo "ghostty")"
+TERM_PROGRAM="$("$TMUX_BIN" show-option -gv "@claude-notify-terminal" 2>/dev/null || echo "Ghostty")"
 
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
