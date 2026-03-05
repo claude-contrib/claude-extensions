@@ -108,7 +108,7 @@ If a line is missing, the option hasn't been set and the plugin will use its bui
 Run the hook script manually with `DEBUG=1` to see detailed execution output:
 
 ```bash
-echo '{"hook_event_name":"Stop"}' | DEBUG=1 bash /path/to/notify.tmux.sh
+echo '{"hook_event_name":"Stop"}' | DEBUG=1 bash /path/to/tmux-notify.sh
 ```
 
 With `DEBUG=1`:
@@ -120,7 +120,7 @@ With `DEBUG=1`:
 
 1. Confirm you are running Claude inside tmux (`echo $TMUX` should be non-empty)
 2. Confirm `$TMUX_PANE` is set (`echo $TMUX_PANE` should print something like `%3`)
-3. Check the hook is registered: look for `notify.tmux.sh` in `~/.claude/hooks.json`
+3. Check the hook is registered: look for `tmux-notify.sh` in `~/.claude/hooks.json`
 4. Run the script manually with `DEBUG=1` (see above)
 
 ### Bell fires but display-message does not

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# notify.sh - tmux notification hook for Claude Code
+# tmux-notify.sh - tmux notification hook for Claude Code
 #
 # DESCRIPTION:
 #   Sends notifications to the tmux pane running Claude Code when it completes
