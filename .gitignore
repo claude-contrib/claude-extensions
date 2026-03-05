@@ -50,6 +50,11 @@ temp/
 *.tar.gz
 *.rar
 
+# Nix
+.direnv/
+result
+result-*
+
 # Claude
 .claude/sessions
 .claude/worktrees
