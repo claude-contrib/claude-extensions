@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# notify.sh - macOS Notification Center hook for Claude Code
+# macos-notify.sh - macOS Notification Center hook for Claude Code
 #
 # DESCRIPTION:
 #   Sends native macOS Notification Center alerts when Claude Code completes
@@ -29,7 +29,18 @@
 set -euo pipefail
 [ -z "${DEBUG:-}" ] || set -x
 
+# ---------------------------------------------------------------------------
+# Utilities
+# ---------------------------------------------------------------------------
+
 # Read tmux option with fallback default
+#
+# Args:
+#   $1 - Option name
+#   $2 - Default value if option is not set
+#
+# Returns:
+#   Prints the option value or default
 _tmux_option() {
 	local option="$1"
 	local default="$2"
@@ -42,16 +53,32 @@ _tmux_option() {
 	fi
 }
 
-# Extract a string field from JSON
+# Extract a string field from the JSON event_args
+#
+# Uses jq when available, falls back to sed for environments without it.
+#
+# Args:
+#   $1 - Field name
+#   $2 - JSON event_args string
+#
+# Returns:
+#   Prints the field value, or empty string if not present
 _json_field() {
 	local field="$1"
 	local json="$2"
 	if command -v jq &>/dev/null; then
 		printf '%s' "$json" | jq -r --arg f "$field" '.[$f] // empty'
 	else
+		# jq not found — sed fallback is unreliable with escaped quotes,
+		# newlines in values, or special characters. Install jq for robustness.
+		[[ -z "${DEBUG:-}" ]] || echo "[macos-notify] WARNING: jq not found, using sed fallback for JSON parsing" >&2
 		printf '%s' "$json" | sed -n "s/.*\"${field}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
 	fi
 }
+
+# ---------------------------------------------------------------------------
+# tmux state readers
+# ---------------------------------------------------------------------------
 
 # Prints the session name of Claude's pane
 _tmux_session_name() {
@@ -70,10 +97,18 @@ _tmux_client_tty() {
 	tmux display-message -p "#{client_tty}" 2>/dev/null || true
 }
 
-# Returns 0 if sound is enabled
-_sound_enabled() {
+# ---------------------------------------------------------------------------
+# Config predicates
+# ---------------------------------------------------------------------------
+
+# Returns 0 if @claude-notify-sound is enabled
+_tmux_sound_enabled() {
 	[[ "$(_tmux_option "@claude-notify-sound" "on")" == "on" ]]
 }
+
+# ---------------------------------------------------------------------------
+# Project helpers
+# ---------------------------------------------------------------------------
 
 # Get the project name from the working directory.
 #
@@ -112,6 +147,10 @@ _scripts_dir() {
 	fi
 }
 
+# ---------------------------------------------------------------------------
+# Notification action
+# ---------------------------------------------------------------------------
+
 # Send a macOS Notification Center alert via terminal-notifier.
 #
 # Clicking the notification runs focus.sh to bring the terminal to the front.
@@ -123,7 +162,7 @@ _scripts_dir() {
 #   $4 - tmux session name (optional)
 #   $5 - tmux window id    (optional, e.g. @4)
 #   $6 - tmux client tty   (optional)
-_send_notification() {
+_notify_alert() {
 	local title="$1"
 	local subtitle="$2"
 	local sound="$3"
@@ -149,6 +188,10 @@ _send_notification() {
 	terminal-notifier "${notify_args[@]}"
 }
 
+# ---------------------------------------------------------------------------
+# Event handler
+# ---------------------------------------------------------------------------
+
 # Handle a Stop or Notification event
 _handle_event() {
 	local event="$1"
@@ -171,12 +214,17 @@ _handle_event() {
 	esac
 
 	if [[ -n "$branch" ]]; then subtitle="${subtitle} — ${branch}"; fi
-	if ! _sound_enabled; then sound=""; fi
+	if ! _tmux_sound_enabled; then sound=""; fi
 
-	_send_notification "$project" "$subtitle" "$sound" "$tmux_session" "$tmux_window" "$tmux_client"
+	_notify_alert "$project" "$subtitle" "$sound" "$tmux_session" "$tmux_window" "$tmux_client"
 }
 
-# Main entry point
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+# Guards against non-macOS environments, checks for terminal-notifier,
+# reads the event args from stdin, and dispatches to the event handler.
 main() {
 	if [[ "$(uname -s)" != "Darwin" ]]; then
 		exit 0
