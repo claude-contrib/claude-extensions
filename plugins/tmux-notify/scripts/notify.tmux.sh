@@ -61,6 +61,9 @@ _json_field() {
 	if command -v jq &>/dev/null; then
 		printf '%s' "$json" | jq -r --arg f "$field" '.[$f] // empty'
 	else
+		# jq not found — sed fallback is unreliable with escaped quotes,
+		# newlines in values, or special characters. Install jq for robustness.
+		[[ -z "${DEBUG:-}" ]] || echo "[tmux-notify] WARNING: jq not found, using sed fallback for JSON parsing" >&2
 		printf '%s' "$json" | sed -n "s/.*\"${field}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
 	fi
 }
@@ -136,7 +139,10 @@ _notify() {
 
 	# Bell: write \a to the pane's TTY
 	if _tmux_bell_enabled; then
-		printf '\a' >"$(_tmux_pane_tty)" || true
+		printf '\a' >"$(_tmux_pane_tty)" || {
+			[[ -z "${DEBUG:-}" ]] || echo "[tmux-notify] WARNING: failed to write bell to pane TTY" >&2
+			true
+		}
 	fi
 
 	# Display-message: show message only when in the same session and Claude's window is not active
@@ -166,6 +172,8 @@ _auto_focus() {
 	fi
 
 	if _tmux_auto_focus_enabled; then
+		# 0.5s delay gives Claude Code time to finish its terminal UI update
+		# before we switch panes. 0.2s was tried and caused visible flicker.
 		(sleep 0.5 && tmux select-pane -t "${TMUX_PANE}") &
 		disown
 	fi
