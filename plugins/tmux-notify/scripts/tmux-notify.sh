@@ -228,12 +228,19 @@ _handle_event() {
 # Entry point
 # ---------------------------------------------------------------------------
 
-# Guards against non-tmux environments, reads the event args from stdin,
-# and dispatches to the appropriate event handler.
-main() {
+# Check runtime dependencies.
+#
+# Exits 0 silently when not running inside a tmux session (graceful no-op).
+_check_dependencies() {
 	if [[ -z "${TMUX:-}" ]] || [[ -z "${TMUX_PANE:-}" ]]; then
 		exit 0
 	fi
+}
+
+# Guards against non-tmux environments, reads the event args from stdin,
+# and dispatches to the appropriate event handler.
+main() {
+	_check_dependencies
 
 	local event_args
 	event_args="$(cat)"

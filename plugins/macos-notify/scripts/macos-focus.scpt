@@ -2,8 +2,8 @@
 -- macos-focus.scpt — bring the terminal app to the front
 --
 -- Works for normal windows, hidden apps, and fullscreen Spaces.
--- Uses activate to initiate the Space switch, then sets frontmost via
--- System Events to ensure the process comes forward in all cases.
+-- Requires "When switching to an application, switch to a Space with open
+-- windows for the application" in System Settings → Desktop & Dock.
 --
 -- Arguments:
 --   1: TERM_PROGRAM value (e.g. "ghostty", "iTerm.app", "Apple_Terminal")
@@ -34,14 +34,9 @@ on getAppName(termProgram)
   return ""
 end getAppName
 
--- Activate the app and force it to the front via System Events.
--- activate alone triggers the Space switch animation but may not complete
--- the transition for fullscreen apps; setting frontmost ensures it does.
+-- Bring the app to the front, switching to its Space if needed.
+-- Requires "When switching to an application, switch to a Space with open
+-- windows for the application" to be enabled in System Settings → Desktop & Dock.
 on focusApp(appName)
   tell application appName to activate
-  tell application "System Events"
-    tell process appName
-      set frontmost to true
-    end tell
-  end tell
 end focusApp

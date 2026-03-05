@@ -1,7 +1,7 @@
 {
   "name": "macos-notify",
   "version": "1.3.1",
-  "description": "macOS Notification Center alerts for Claude Code — notifies when Claude needs input or completes a task",
+  "description": "macOS Notification Center alerts for Claude Code — notifies when Claude needs your input",
   "author": {
     "name": "claude-contrib",
     "email": "claude-contrib@github.com",

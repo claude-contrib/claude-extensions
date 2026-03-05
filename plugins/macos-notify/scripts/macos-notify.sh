@@ -3,24 +3,24 @@
 # macos-notify.sh - macOS Notification Center hook for Claude Code
 #
 # DESCRIPTION:
-#   Sends native macOS Notification Center alerts when Claude Code completes
-#   a task or needs attention. Uses terminal-notifier for click-to-focus
-#   support via focus.sh.
+#   Sends native macOS Notification Center alerts when Claude Code needs
+#   attention. Uses terminal-notifier for click-to-focus support via
+#   macos-focus.sh.
 #
 # DEPENDENCY:
 #   terminal-notifier (brew install terminal-notifier)
 #
 # USAGE:
-#   Invoked automatically by Claude Code hooks on Stop and Notification events.
+#   Invoked automatically by Claude Code hooks on Notification events.
 #
 # TMUX OPTIONS (set via tmux set-option -g <option> <value>):
-#   @claude-notify-term-program  ghostty  - Terminal identifier (e.g. "ghostty", "iTerm.app").
+#   @claude-notify-terminal  ghostty  - Terminal identifier (e.g. "ghostty", "iTerm.app").
 #                                           Required when running inside tmux, where $TERM_PROGRAM
 #                                           is "tmux" rather than the outer terminal app.
 #   @claude-notify-sound         on       - Play a sound with the notification
 #
 # STDIN (JSON from Claude Code):
-#   hook_event_name  - "Stop" or "Notification"
+#   hook_event_name  - "Notification"
 #
 # EXIT CODES:
 #   0 - Success (including graceful no-op on non-macOS)
@@ -73,6 +73,15 @@ _json_field() {
 		# newlines in values, or special characters. Install jq for robustness.
 		[[ -z "${DEBUG:-}" ]] || echo "[macos-notify] WARNING: jq not found, using sed fallback for JSON parsing" >&2
 		printf '%s' "$json" | sed -n "s/.*\"${field}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
+	fi
+}
+
+# Prints the scripts directory (works with or without CLAUDE_PLUGIN_ROOT)
+_scripts_dir() {
+	if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
+		echo "${CLAUDE_PLUGIN_ROOT}/scripts"
+	else
+		cd "$(dirname "${BASH_SOURCE[0]}")" && pwd
 	fi
 }
 
@@ -138,47 +147,56 @@ _git_branch() {
 	git rev-parse --abbrev-ref HEAD 2>/dev/null || true
 }
 
-# Prints the scripts directory (works with or without CLAUDE_PLUGIN_ROOT)
-_scripts_dir() {
-	if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
-		echo "${CLAUDE_PLUGIN_ROOT}/scripts"
-	else
-		cd "$(dirname "${BASH_SOURCE[0]}")" && pwd
-	fi
-}
-
 # ---------------------------------------------------------------------------
 # Notification action
 # ---------------------------------------------------------------------------
 
+# Build the shell-quoted focus command string passed to terminal-notifier -execute.
+#
+# Reads tmux state directly from the environment. When not running inside tmux,
+# session/window/client args are passed as empty strings so macos-focus.sh
+# skips the tmux window switch and only activates the terminal app.
+#
+# Returns:
+#   Prints the focus command string, ready for use as a -execute argument
+_focus_command() {
+	local tmux_session="" tmux_window="" tmux_client=""
+	if [[ -n "${TMUX:-}" ]] && [[ -n "${TMUX_PANE:-}" ]]; then
+		tmux_session="$(_tmux_session_name)"
+		tmux_window="$(_tmux_window_id)"
+		tmux_client="$(_tmux_client_tty)"
+	fi
+
+	local scripts_dir tmux_bin cmd
+	scripts_dir="$(_scripts_dir)"
+	tmux_bin="$(command -v tmux 2>/dev/null || true)"
+
+	printf -v cmd '%q ' "${scripts_dir}/macos-focus.sh" "$tmux_bin" "$tmux_session" "$tmux_window" "$tmux_client"
+	echo "${cmd% }"
+}
+
 # Send a macOS Notification Center alert via terminal-notifier.
 #
-# Clicking the notification runs focus.sh to bring the terminal to the front.
+# Clicking the notification runs macos-focus.sh to bring the terminal to the front.
 #
 # Args:
 #   $1 - Title (project name)
-#   $2 - Subtitle (action — branch)
-#   $3 - Sound name (e.g. "Glass", "Ping"), or empty to omit sound
-#   $4 - tmux session name (optional)
-#   $5 - tmux window id    (optional, e.g. @4)
-#   $6 - tmux client tty   (optional)
+#   $2 - Subtitle text (current git branch will be appended automatically)
+#   $3 - Sound name (e.g. "Ping"), or empty to omit sound
 _notify_alert() {
 	local title="$1"
 	local subtitle="$2"
 	local sound="$3"
-	local tmux_session="${4:-}"
-	local tmux_window="${5:-}"
-	local tmux_client="${6:-}"
-
-	local scripts_dir
-	scripts_dir="$(_scripts_dir)"
-
-	local tmux_bin
-	tmux_bin="$(command -v tmux 2>/dev/null || true)"
 
 	local focus_command
-	printf -v focus_command '%q ' "${scripts_dir}/macos-focus.sh" "$tmux_bin" "$tmux_session" "$tmux_window" "$tmux_client"
-	focus_command="${focus_command% }"
+	focus_command="$(_focus_command)"
+
+	local git_branch
+	git_branch="$(_git_branch)"
+
+	if [[ -n "$git_branch" ]]; then
+		subtitle="${subtitle} — ${git_branch}"
+	fi
 
 	local notify_args=(-title "$title" -subtitle "$subtitle" -message " " -group "claude-code" -execute "$focus_command")
 	if [[ -n "$sound" ]]; then
@@ -192,40 +210,33 @@ _notify_alert() {
 # Event handler
 # ---------------------------------------------------------------------------
 
-# Handle a Stop or Notification event
+# Handle a Notification event
 _handle_event() {
-	local event="$1"
-	local project="$2"
-	local branch="$3"
-	local tmux_session="$4"
-	local tmux_window="$5"
-	local tmux_client="$6"
+	local alert_title
+	alert_title="$(_project_name)"
 
-	local subtitle sound
-	case "$event" in
-	Stop)
-		subtitle="Task complete"
-		sound="Glass"
-		;;
-	Notification)
-		subtitle="Needs your input"
-		sound="Ping"
-		;;
-	esac
+	local alert_subtitle
+	alert_subtitle="Claude needs your input"
 
-	if [[ -n "$branch" ]]; then subtitle="${subtitle} — ${branch}"; fi
-	if ! _tmux_sound_enabled; then sound=""; fi
+	local alert_sound
+	if _tmux_sound_enabled; then
+		alert_sound="Ping"
+	else
+		alert_sound=""
+	fi
 
-	_notify_alert "$project" "$subtitle" "$sound" "$tmux_session" "$tmux_window" "$tmux_client"
+	_notify_alert "$alert_title" "$alert_subtitle" "$alert_sound"
 }
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
-# Guards against non-macOS environments, checks for terminal-notifier,
-# reads the event args from stdin, and dispatches to the event handler.
-main() {
+# Check runtime dependencies.
+#
+# Exits 0 silently on non-macOS (graceful no-op).
+# Exits 1 with a message if terminal-notifier is not installed.
+_check_dependencies() {
 	if [[ "$(uname -s)" != "Darwin" ]]; then
 		exit 0
 	fi
@@ -234,6 +245,12 @@ main() {
 		echo "macos-notify: terminal-notifier not found. Install with: brew install terminal-notifier" >&2
 		exit 1
 	fi
+}
+
+# Guards against non-macOS environments, checks for terminal-notifier,
+# reads the event args from stdin, and dispatches to the event handler.
+main() {
+	_check_dependencies
 
 	local event_args
 	event_args="$(cat)"
@@ -241,22 +258,9 @@ main() {
 	local event_name
 	event_name="$(_json_field "hook_event_name" "$event_args")"
 
-	local project
-	project="$(_project_name)"
-
-	local branch
-	branch="$(_git_branch)"
-
-	local tmux_session="" tmux_window="" tmux_client=""
-	if [[ -n "${TMUX:-}" ]] && [[ -n "${TMUX_PANE:-}" ]]; then
-		tmux_session="$(_tmux_session_name)"
-		tmux_window="$(_tmux_window_id)"
-		tmux_client="$(_tmux_client_tty)"
-	fi
-
 	case "$event_name" in
-	Stop | Notification)
-		_handle_event "$event_name" "$project" "$branch" "$tmux_session" "$tmux_window" "$tmux_client"
+	Notification)
+		_handle_event
 		;;
 	esac
 }

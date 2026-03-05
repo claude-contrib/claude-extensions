@@ -1,12 +1,12 @@
 # macos-notify
 
-> Native macOS Notification Center alerts for Claude Code — get notified when Claude finishes a task or needs your input, even when you've switched to another app.
+> Native macOS Notification Center alerts for Claude Code — get notified when Claude needs your input, even when you've switched to another app.
 
 ## What it does
 
-`macos-notify` sends macOS Notification Center popups when Claude Code:
-- **Completes a task** (`Stop` event) — "Task complete — \<branch\>"
-- **Needs your attention** (`Notification` event) — "Needs your input — \<branch\>"
+`macos-notify` sends macOS Notification Center popups when Claude Code needs your attention (`Notification` event) — "Needs your input — \<branch\>"
+
+For task-completion notifications use `tmux-notify`, which fires on `Stop` with a low-friction in-terminal bell. macOS popups on every `Stop` event create too much noise during active sessions.
 
 Notifications show the project name (`owner/repo` or directory basename) as the title.
 
@@ -51,26 +51,26 @@ Options are set via tmux session options:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `@claude-notify-term-program` | `ghostty` | Terminal app identifier for click-to-focus. Required when running inside tmux because `$TERM_PROGRAM` reports `tmux` rather than the outer terminal. |
-| `@claude-notify-sound` | `on` | Play a sound with each notification (`Glass` on Stop, `Ping` on Notification) |
+| `@claude-notify-terminal` | `ghostty` | Terminal app identifier for click-to-focus. Required when running inside tmux because `$TERM_PROGRAM` reports `tmux` rather than the outer terminal. |
+| `@claude-notify-sound` | `on` | Play a sound (`Ping`) with each notification |
 
 Set options globally in your `~/.tmux.conf`:
 
 ```tmux
-set -g @claude-notify-term-program ghostty
+set -g @claude-notify-terminal ghostty
 set -g @claude-notify-sound on
 ```
 
 Or at runtime:
 
 ```bash
-tmux set-option -g @claude-notify-term-program ghostty
+tmux set-option -g @claude-notify-terminal ghostty
 tmux set-option -g @claude-notify-sound off
 ```
 
 ## Supported terminals
 
-| Terminal | `@claude-notify-term-program` value |
+| Terminal | `@claude-notify-terminal` value |
 |----------|-------------------------------------|
 | Terminal.app | `Apple_Terminal` |
 | iTerm2 | `iTerm.app` |
@@ -102,8 +102,12 @@ Install both for full coverage:
 **Notification appears but "Show" click does nothing**
 - Change notification style to **Alerts** in System Settings → Notifications → terminal-notifier
 
+**Click-to-focus does not switch to the terminal's Space / fullscreen**
+- Enable **System Settings → Desktop & Dock → "When switching to an application, switch to a Space with open windows for the application"**
+- Without this setting, macOS will not slide to the app's Space regardless of notification click
+
 **Click-to-focus opens terminal but wrong tmux window**
-- Verify `@claude-notify-term-program` matches your terminal app (see table above)
+- Verify `@claude-notify-terminal` matches your terminal app (see table above)
 - The plugin captures the tmux client TTY at hook-fire time; if your layout changes between notification and click it may navigate to the original window
 
 **Ghostty notifications require permission from Ghostty, not terminal-notifier**
