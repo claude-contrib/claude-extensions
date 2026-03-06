@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/claude-contrib/claude-extensions/compare/v1.3.0...v1.3.1) (2026-03-06)
+
+
+### Bug Fixes
+
+* **tmux-notify:** update tests to match refactored script ([3d5119e](https://github.com/claude-contrib/claude-extensions/commit/3d5119e9800358bc810ae1f9b561720e642875e8))
+
 ## [1.3.0](https://github.com/claude-contrib/claude-extensions/compare/v1.2.2...v1.3.0) (2026-03-06)
 
 
