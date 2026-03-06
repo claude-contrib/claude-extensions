@@ -1,6 +1,6 @@
 {
-  ".": "1.2.0",
+  ".": "1.2.1",
   "plugins/agent-rules": "1.1.0",
-  "plugins/tmux-notify": "1.2.0",
+  "plugins/tmux-notify": "1.2.1",
   "plugins/macos-notify": "1.1.0"
 }
