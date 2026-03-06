@@ -4,19 +4,21 @@
 #
 # DESCRIPTION:
 #   Sends notifications to the tmux pane running Claude Code when it completes
-#   a task or needs attention. Supports three mechanisms: visual bell,
-#   display-message, and auto-focus — all configurable via tmux session options.
+#   a task or needs attention. Supports four mechanisms: visual bell, window
+#   rename, display-message, and auto-focus — all configurable via tmux options.
 #
 # USAGE:
-#   Invoked automatically by Claude Code hooks on Stop and Notification events.
+#   Invoked automatically by Claude Code hooks on PreToolUse, Stop, and
+#   Notification events.
 #
 # TMUX OPTIONS (set via tmux set-option -g <option> <value>):
-#   @claude-notify-bell        on  - Write \a to the pane TTY (visual bell)
-#   @claude-notify-message     off - Show display-message when Claude's window is inactive
-#   @claude-notify-auto-focus  off - Switch focus to Claude's pane on completion
+#   @claude-notify-bell          on  - Write \a to the pane TTY (visual bell)
+#   @claude-notify-message       off - Show display-message when Claude's window is inactive
+#   @claude-notify-auto-focus    off - Switch focus to Claude's pane on completion
+#   @claude-notify-auto-rename  on - Rename window to "claude - <tool>" on tool use, restore on Stop
 #
 # STDIN (JSON from Claude Code):
-#   hook_event_name        - "Stop" or "Notification"
+#   hook_event_name        - "Stop", "Notification", or "PreToolUse"
 #
 # EXIT CODES:
 #   0 - Success (including graceful no-op when not in tmux)
@@ -130,6 +132,17 @@ _tmux_auto_focus_enabled() {
 	[[ "$(_tmux_option "@claude-notify-auto-focus" "off")" == "on" ]]
 }
 
+# Returns 0 if @claude-notify-auto-rename is enabled
+_tmux_window_rename_enabled() {
+	[[ "$(_tmux_option "@claude-notify-auto-rename" "on")" == "on" ]]
+}
+
+# Returns the pane-scoped tmux option key for storing the original window name
+_tmux_saved_window_name_key() {
+	local pane_id="${TMUX_PANE//%/}"
+	echo "@claude-saved-window-name-${pane_id}"
+}
+
 # ---------------------------------------------------------------------------
 # State predicates
 # ---------------------------------------------------------------------------
@@ -142,6 +155,72 @@ _tmux_is_active_pane() {
 # Returns 0 if the current session is the same as Claude's pane session
 _tmux_is_active_session() {
 	[[ "$(_tmux_current_session)" == "$(_tmux_pane_session)" ]]
+}
+
+# ---------------------------------------------------------------------------
+# Window rename actions
+# ---------------------------------------------------------------------------
+
+# Returns 0 if the name looks like it was set by Claude Code (version string
+# like "1.2.3" or a name already starting with "claude"), not a user name.
+_is_claude_set_name() {
+	local name="$1"
+	[[ "$name" =~ ^[0-9]+\. ]] || [[ "$name" == claude* ]]
+}
+
+# Rename the window to "claude - <tool>", saving the original name for restore.
+#
+# Only renames if @claude-notify-auto-rename is enabled. Saves the original
+# name only on the first call, and only if it is not a Claude-set name (e.g.
+# version strings like "1.2.3" are ignored — the user's pre-Claude name is
+# what matters). Repeat calls update the displayed tool name without touching
+# the saved original.
+#
+# Args:
+#   $1 - Tool name to display (e.g. "Bash", "Read")
+_rename_window() {
+	if ! _tmux_window_rename_enabled; then
+		return 0
+	fi
+
+	local tool_name="${1:-}"
+	local key
+	key="$(_tmux_saved_window_name_key)"
+
+	local saved
+	saved="$(tmux show-option -gv "$key" 2>/dev/null || true)"
+
+	if [[ -z "$saved" ]]; then
+		local current_name
+		current_name="$(_tmux_pane_window_name)"
+		if ! _is_claude_set_name "$current_name"; then
+			tmux set-option -g "$key" "$current_name"
+		fi
+	fi
+
+	local title="claude"
+	[[ -n "$tool_name" ]] && title="claude - ${tool_name}"
+	tmux rename-window -t "$(_tmux_pane_window)" "$title"
+}
+
+# Restore the window name saved by _rename_window and clear the saved value.
+#
+# Only acts if @claude-notify-auto-rename is enabled and a saved name exists.
+_restore_window_name() {
+	if ! _tmux_window_rename_enabled; then
+		return 0
+	fi
+
+	local key
+	key="$(_tmux_saved_window_name_key)"
+
+	local saved
+	saved="$(tmux show-option -gv "$key" 2>/dev/null || true)"
+
+	if [[ -n "$saved" ]]; then
+		tmux rename-window -t "$(_tmux_pane_window)" "$saved"
+		tmux set-option -gu "$key"
+	fi
 }
 
 # ---------------------------------------------------------------------------
@@ -252,7 +331,14 @@ main() {
 	Stop | Notification)
 		_handle_event "$event_name"
 		;;
+	PreToolUse)
+		_rename_window "$(_json_field "tool_name" "$event_args")"
+		;;
 	esac
+
+	if [[ "$event_name" == "Stop" ]]; then
+		_restore_window_name
+	fi
 }
 
 [[ "${BASH_SOURCE[0]}" != "${0}" ]] || main "$@"
