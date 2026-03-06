@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.2](https://github.com/claude-contrib/claude-extensions/compare/v1.2.1...v1.2.2) (2026-03-06)
+
+
+### Bug Fixes
+
+* bump plugin.json versions and fix release pipeline ([5bc4513](https://github.com/claude-contrib/claude-extensions/commit/5bc45138e70e8dd6a05ca12f672b3da1ed7190bb))
+* **release:** correct extra-files paths for sub-package plugins ([0e9e536](https://github.com/claude-contrib/claude-extensions/commit/0e9e536a57b271bb2b434693afc90cb6267287dd))
+
 ## [1.2.1](https://github.com/claude-contrib/claude-extensions/compare/v1.2.0...v1.2.1) (2026-03-06)
 
 
