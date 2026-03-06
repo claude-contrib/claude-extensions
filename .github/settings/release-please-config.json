@@ -15,7 +15,6 @@
     "plugins/agent-rules": {
       "release-type": "simple",
       "component": "agent-rules",
-      "skip-github-release": true,
       "extra-files": [
         {
           "type": "json",
@@ -32,7 +31,6 @@
     "plugins/tmux-notify": {
       "release-type": "simple",
       "component": "tmux-notify",
-      "skip-github-release": true,
       "extra-files": [
         {
           "type": "json",
@@ -49,7 +47,6 @@
     "plugins/macos-notify": {
       "release-type": "simple",
       "component": "macos-notify",
-      "skip-github-release": true,
       "extra-files": [
         {
           "type": "json",

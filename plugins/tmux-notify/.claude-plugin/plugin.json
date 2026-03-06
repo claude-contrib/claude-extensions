@@ -1,6 +1,6 @@
 {
   "name": "tmux-notify",
-  "version": "1.0.0",
+  "version": "1.2.1",
   "description": "tmux notifications for Claude Code \u2014 bell, display-message, and auto-focus",
   "author": {
     "name": "claude-contrib",

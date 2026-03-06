@@ -12,6 +12,8 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: googleapis/release-please-action@v4
         with:
           config-file: .github/settings/release-please-config.json
