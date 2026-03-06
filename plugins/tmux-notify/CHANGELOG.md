@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/claude-contrib/claude-extensions/compare/v1.2.0...tmux-notify-v1.2.1) (2026-03-06)
+
+
+### Bug Fixes
+
+* **tmux-notify:** restore window to 'claude' on Stop when no saved name; rename on SessionStart ([fcef042](https://github.com/claude-contrib/claude-extensions/commit/fcef0428b296fefae40d714aee842ccc07c7aef4))
+
 ## [1.2.0](https://github.com/claude-contrib/claude-extensions/compare/v1.1.0...tmux-notify-v1.2.0) (2026-03-06)
 
 
