@@ -18,12 +18,12 @@
       "extra-files": [
         {
           "type": "json",
-          "path": "plugins/agent-rules/.claude-plugin/plugin.json",
+          "path": ".claude-plugin/plugin.json",
           "jsonpath": "$.version"
         },
         {
           "type": "json",
-          "path": ".claude-plugin/marketplace.json",
+          "path": "/.claude-plugin/marketplace.json",
           "jsonpath": "$.plugins[?(@.name=='agent-rules')].version"
         }
       ]
@@ -34,12 +34,12 @@
       "extra-files": [
         {
           "type": "json",
-          "path": "plugins/tmux-notify/.claude-plugin/plugin.json",
+          "path": ".claude-plugin/plugin.json",
           "jsonpath": "$.version"
         },
         {
           "type": "json",
-          "path": ".claude-plugin/marketplace.json",
+          "path": "/.claude-plugin/marketplace.json",
           "jsonpath": "$.plugins[?(@.name=='tmux-notify')].version"
         }
       ]
@@ -50,12 +50,12 @@
       "extra-files": [
         {
           "type": "json",
-          "path": "plugins/macos-notify/.claude-plugin/plugin.json",
+          "path": ".claude-plugin/plugin.json",
           "jsonpath": "$.version"
         },
         {
           "type": "json",
-          "path": ".claude-plugin/marketplace.json",
+          "path": "/.claude-plugin/marketplace.json",
           "jsonpath": "$.plugins[?(@.name=='macos-notify')].version"
         }
       ]
