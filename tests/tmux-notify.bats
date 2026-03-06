@@ -243,11 +243,12 @@ _load() {
 	[ "$status" -ne 0 ]
 }
 
-@test "_tmux_window_rename_enabled: default is 'on'" {
+@test "_tmux_window_rename_enabled: default is 'off'" {
 	_load
 	tmux() { return 1; }
 	export -f tmux
-	_tmux_window_rename_enabled
+	run _tmux_window_rename_enabled
+	[ "$status" -ne 0 ]
 }
 
 # ---------------------------------------------------------------------------
@@ -264,23 +265,16 @@ _load() {
 	[ "$rename_called" -eq 0 ]
 }
 
-@test "_rename_window: renames window to 'claude - <tool>' and saves original name" {
+@test "_rename_window: renames window to 'claude - <tool>'" {
 	_load
 	export TMUX_PANE="%3"
 	_tmux_window_rename_enabled() { return 0; }
 	_tmux_pane_window_name() { echo "mywindow"; }
 	_tmux_pane_window() { echo "@1"; }
-	saved_key=""
-	saved_value=""
 	rename_target=""
 	rename_value=""
 	tmux() {
 		case "$1" in
-		show-option) echo ""; return 1 ;;
-		set-option)
-			saved_key="$3"
-			saved_value="$4"
-			;;
 		rename-window)
 			rename_target="$3"
 			rename_value="$4"
@@ -289,8 +283,6 @@ _load() {
 	}
 	export -f tmux
 	_rename_window "Bash"
-	[ "$saved_key" = "@claude-saved-window-name-3" ]
-	[ "$saved_value" = "mywindow" ]
 	[ "$rename_target" = "@1" ]
 	[ "$rename_value" = "claude - Bash" ]
 }
@@ -375,36 +367,20 @@ _load() {
 # _restore_window_name
 # ---------------------------------------------------------------------------
 
-@test "_restore_window_name: skips when disabled" {
-	_load
-	_tmux_window_rename_enabled() { return 1; }
-	rename_called=0
-	tmux() { rename_called=1; }
-	export -f tmux
-	_restore_window_name
-	[ "$rename_called" -eq 0 ]
-}
-
-@test "_restore_window_name: renames to 'claude' when no saved name" {
+@test "_restore_window_name: skips rename when no saved name" {
 	_load
 	export TMUX_PANE="%3"
-	_tmux_window_rename_enabled() { return 0; }
 	_tmux_pane_window() { echo "@1"; }
-	rename_target=""
-	rename_value=""
+	rename_called=0
 	tmux() {
 		case "$1" in
 		show-option) echo ""; return 1 ;;
-		rename-window)
-			rename_target="$3"
-			rename_value="$4"
-			;;
+		rename-window) rename_called=1 ;;
 		esac
 	}
 	export -f tmux
 	_restore_window_name
-	[ "$rename_target" = "@1" ]
-	[ "$rename_value" = "claude" ]
+	[ "$rename_called" -eq 0 ]
 }
 
 @test "_restore_window_name: restores saved name and clears option" {
