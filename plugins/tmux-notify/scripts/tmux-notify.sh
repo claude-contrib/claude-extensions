@@ -220,6 +220,8 @@ _restore_window_name() {
 	if [[ -n "$saved" ]]; then
 		tmux rename-window -t "$(_tmux_pane_window)" "$saved"
 		tmux set-option -gu "$key"
+	else
+		tmux rename-window -t "$(_tmux_pane_window)" "claude"
 	fi
 }
 
@@ -328,6 +330,9 @@ main() {
 	event_name="$(_json_field "hook_event_name" "$event_args")"
 
 	case "$event_name" in
+	SessionStart)
+		_rename_window ""
+		;;
 	Stop | Notification)
 		_handle_event "$event_name"
 		;;

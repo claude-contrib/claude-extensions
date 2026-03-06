@@ -385,21 +385,26 @@ _load() {
 	[ "$rename_called" -eq 0 ]
 }
 
-@test "_restore_window_name: skips when no saved name" {
+@test "_restore_window_name: renames to 'claude' when no saved name" {
 	_load
 	export TMUX_PANE="%3"
 	_tmux_window_rename_enabled() { return 0; }
 	_tmux_pane_window() { echo "@1"; }
-	rename_called=0
+	rename_target=""
+	rename_value=""
 	tmux() {
 		case "$1" in
 		show-option) echo ""; return 1 ;;
-		rename-window) rename_called=1 ;;
+		rename-window)
+			rename_target="$3"
+			rename_value="$4"
+			;;
 		esac
 	}
 	export -f tmux
 	_restore_window_name
-	[ "$rename_called" -eq 0 ]
+	[ "$rename_target" = "@1" ]
+	[ "$rename_value" = "claude" ]
 }
 
 @test "_restore_window_name: restores saved name and clears option" {
@@ -425,4 +430,33 @@ _load() {
 	[ "$restore_target" = "@1" ]
 	[ "$restore_value" = "mywindow" ]
 	[ "$unset_key" = "@claude-saved-window-name-3" ]
+}
+
+# ---------------------------------------------------------------------------
+# main — SessionStart event
+# ---------------------------------------------------------------------------
+
+@test "main: SessionStart event renames window to 'claude'" {
+	_load
+	export TMUX=fake
+	export TMUX_PANE="%3"
+	_tmux_window_rename_enabled() { return 0; }
+	_tmux_pane_window_name() { echo "mywindow"; }
+	_tmux_pane_window() { echo "@1"; }
+	rename_target=""
+	rename_value=""
+	tmux() {
+		case "$1" in
+		show-option) echo ""; return 1 ;;
+		set-option) ;;
+		rename-window)
+			rename_target="$3"
+			rename_value="$4"
+			;;
+		esac
+	}
+	export -f tmux
+	main < <(echo '{"hook_event_name":"SessionStart"}')
+	[ "$rename_target" = "@1" ]
+	[ "$rename_value" = "claude" ]
 }
