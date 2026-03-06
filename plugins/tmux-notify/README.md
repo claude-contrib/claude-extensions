@@ -7,11 +7,11 @@
 When you run Claude Code in a background tmux pane, you need a reliable signal when it's done. Status bar widgets break when you have multiple Claude instances because they share state across windows. `tmux-notify` works at the pane level using four independent mechanisms:
 
 - **Bell** — writes `\a` directly to the pane's TTY so your terminal flashes/beeps regardless of which window is active
-- **Window rename** — renames the window to `claude - <tool>` (e.g. `claude - Bash`) while Claude is working, then restores the original name when it finishes
+- **Window rename** — renames the window to `"claude"` when Claude starts, optionally to `claude - <tool>` (e.g. `claude - Bash`) during tool use, then restores the original name when it finishes
 - **Display-message** — shows a contextual message in the tmux status area when Claude's window is out of focus
 - **Auto-focus** — selects Claude's pane within its window when Claude completes or needs attention
 
-Bell and window rename are on by default; display-message and auto-focus are opt-in. All four work independently.
+Bell is on by default; display-message and auto-focus are opt-in. Window rename always marks the session start/stop — the `claude - <tool>` suffix during tool use is opt-in. All four work independently.
 
 ## Installation
 
@@ -32,7 +32,7 @@ Set options in `~/.tmux.conf` for persistence, or at runtime with `tmux set-opti
 | Option | Default | Values | Description |
 |--------|---------|--------|-------------|
 | `@claude-notify-bell` | `on` | `on` / `off` | Write `\a` to the pane TTY (visual/audible bell) |
-| `@claude-notify-auto-rename` | `on` | `on` / `off` | Rename window to `claude - <tool>` during tool use, restore on Stop |
+| `@claude-notify-auto-rename` | `off` | `on` / `off` | Add `- <tool>` suffix during tool use (e.g. `claude - Bash`); SessionStart/Stop always rename/restore |
 | `@claude-notify-message` | `off` | `on` / `off` | Show contextual message when Claude's window is inactive |
 | `@claude-notify-auto-focus` | `off` | `on` / `off` | Select Claude's pane within its window |
 
@@ -42,7 +42,7 @@ Set options in `~/.tmux.conf` for persistence, or at runtime with `tmux set-opti
 
 ```
 set-option -g @claude-notify-bell on
-set-option -g @claude-notify-auto-rename on
+set-option -g @claude-notify-auto-rename off
 set-option -g @claude-notify-message on
 set-option -g @claude-notify-auto-focus off
 ```
@@ -73,9 +73,11 @@ Writes the ASCII bell character (`\a`) directly to `#{pane_tty}` — the TTY dev
 
 ### Window rename
 
-On every `PreToolUse` event the window is renamed to `claude - <tool>` (e.g. `claude - Bash`, `claude - Read`). When Claude finishes (`Stop` event) the original name is restored.
+On `SessionStart` the window is always renamed to `"claude"` — a persistent marker that Claude is running here — and the original name is saved. When Claude finishes (`Stop` event) the original name is always restored, regardless of the `@claude-notify-auto-rename` option.
 
-The original name is captured on the first tool use of each session and saved to a pane-scoped tmux option. Names that look like they were set by Claude Code itself — version strings like `1.2.3` or names already starting with `claude` — are not saved, since they are not meaningful user names.
+`@claude-notify-auto-rename` only controls whether `PreToolUse` adds a tool suffix: when `on`, the window becomes `claude - <tool>` (e.g. `claude - Bash`, `claude - Read`) during each tool call. When `off` (the default), the window stays `"claude"` throughout.
+
+Original names that look like they were set by Claude Code itself — version strings like `1.2.3` or names already starting with `claude` — are not saved, since they are not meaningful user names.
 
 The saved name is keyed per pane (`@claude-saved-window-name-<pane_id>`), so multiple Claude instances in different panes each track their own original name independently.
 
@@ -151,7 +153,7 @@ Also note that display-message only fires when you are in the same tmux session 
 
 ### Window name is not restored after Claude exits
 
-The original name is only saved if it is not a Claude-set name. If the window was already named something like `1.2.3` (Claude's version string) when the first tool use fired, there is nothing to restore. Rename the window to a meaningful name before starting Claude, or disable `automatic-rename` in tmux so Claude Code cannot overwrite it before the first tool use.
+The original name is saved on `SessionStart`. If the window was already named something like `1.2.3` (Claude's version string) or a name starting with `claude` when Claude started, it is not considered a meaningful user name and is not saved — so there is nothing to restore. Rename the window to a meaningful name before starting Claude.
 
 ### Bell or message fires when Claude's pane is already focused
 

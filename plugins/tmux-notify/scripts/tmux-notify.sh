@@ -15,7 +15,7 @@
 #   @claude-notify-bell          on  - Write \a to the pane TTY (visual bell)
 #   @claude-notify-message       off - Show display-message when Claude's window is inactive
 #   @claude-notify-auto-focus    off - Switch focus to Claude's pane on completion
-#   @claude-notify-auto-rename  on - Rename window to "claude - <tool>" on tool use, restore on Stop
+#   @claude-notify-auto-rename  off - Rename window to "claude - <tool>" on tool use (SessionStart/Stop always run)
 #
 # STDIN (JSON from Claude Code):
 #   hook_event_name        - "Stop", "Notification", or "PreToolUse"
@@ -134,7 +134,7 @@ _tmux_auto_focus_enabled() {
 
 # Returns 0 if @claude-notify-auto-rename is enabled
 _tmux_window_rename_enabled() {
-	[[ "$(_tmux_option "@claude-notify-auto-rename" "on")" == "on" ]]
+	[[ "$(_tmux_option "@claude-notify-auto-rename" "off")" == "on" ]]
 }
 
 # Returns the pane-scoped tmux option key for storing the original window name
@@ -168,22 +168,12 @@ _is_claude_set_name() {
 	[[ "$name" =~ ^[0-9]+\. ]] || [[ "$name" == claude* ]]
 }
 
-# Rename the window to "claude - <tool>", saving the original name for restore.
+# Save the original window name and rename to "claude".
 #
-# Only renames if @claude-notify-auto-rename is enabled. Saves the original
-# name only on the first call, and only if it is not a Claude-set name (e.g.
-# version strings like "1.2.3" are ignored — the user's pre-Claude name is
-# what matters). Repeat calls update the displayed tool name without touching
-# the saved original.
-#
-# Args:
-#   $1 - Tool name to display (e.g. "Bash", "Read")
-_rename_window() {
-	if ! _tmux_window_rename_enabled; then
-		return 0
-	fi
-
-	local tool_name="${1:-}"
+# Called unconditionally on SessionStart — always marks the window as running
+# Claude. Saves the original name only if not already saved and not a
+# Claude-set name (version strings or names starting with "claude").
+_save_and_rename_session() {
 	local key
 	key="$(_tmux_saved_window_name_key)"
 
@@ -198,19 +188,32 @@ _rename_window() {
 		fi
 	fi
 
+	tmux rename-window -t "$(_tmux_pane_window)" "claude"
+}
+
+# Rename the window to "claude - <tool>".
+#
+# Only renames if @claude-notify-auto-rename is enabled. Repeat calls update
+# the displayed tool name. The original name was already saved by
+# _save_and_rename_session on SessionStart.
+#
+# Args:
+#   $1 - Tool name to display (e.g. "Bash", "Read")
+_rename_window() {
+	if ! _tmux_window_rename_enabled; then
+		return 0
+	fi
+
+	local tool_name="${1:-}"
 	local title="claude"
 	[[ -n "$tool_name" ]] && title="claude - ${tool_name}"
 	tmux rename-window -t "$(_tmux_pane_window)" "$title"
 }
 
-# Restore the window name saved by _rename_window and clear the saved value.
+# Restore the window name saved by _save_and_rename_session and clear the saved value.
 #
-# Only acts if @claude-notify-auto-rename is enabled and a saved name exists.
+# Called unconditionally on Stop. If no name was saved, leaves the window name unchanged.
 _restore_window_name() {
-	if ! _tmux_window_rename_enabled; then
-		return 0
-	fi
-
 	local key
 	key="$(_tmux_saved_window_name_key)"
 
@@ -220,9 +223,8 @@ _restore_window_name() {
 	if [[ -n "$saved" ]]; then
 		tmux rename-window -t "$(_tmux_pane_window)" "$saved"
 		tmux set-option -gu "$key"
-	else
-		tmux rename-window -t "$(_tmux_pane_window)" "claude"
 	fi
+	# else: no saved name — leave window name unchanged
 }
 
 # ---------------------------------------------------------------------------
@@ -331,7 +333,7 @@ main() {
 
 	case "$event_name" in
 	SessionStart)
-		_rename_window ""
+		_save_and_rename_session
 		;;
 	Stop | Notification)
 		_handle_event "$event_name"
