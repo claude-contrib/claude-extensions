@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/claude-contrib/claude-extensions/compare/v1.3.1...v1.4.0) (2026-03-17)
+
+
+### Features
+
+* **tmux-notify:** remove window name management ([75514ef](https://github.com/claude-contrib/claude-extensions/commit/75514ef34a94d11dc0b60e994e0734f9a22a87af))
+
 ## [1.3.1](https://github.com/claude-contrib/claude-extensions/compare/v1.3.0...v1.3.1) (2026-03-06)
 
 
