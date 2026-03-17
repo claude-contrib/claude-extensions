@@ -56,5 +56,5 @@ result
 result-*
 
 # Claude
-.claude/sessions
-.claude/worktrees
+.github/sessions
+.github/worktrees
