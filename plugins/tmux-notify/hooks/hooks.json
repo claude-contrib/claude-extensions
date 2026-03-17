@@ -1,30 +1,6 @@
 {
   "description": "Notify via tmux bell, display-message, or auto-focus when Claude completes or needs attention",
   "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/tmux-notify.sh",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/tmux-notify.sh",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "matcher": "*",
