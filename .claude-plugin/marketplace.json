@@ -33,7 +33,7 @@
     {
       "name": "tmux-notify",
       "description": "tmux notifications for Claude Code — bell, display-message, and auto-focus",
-      "version": "1.7.0",
+      "version": "1.8.0",
       "author": {
         "name": "claude-contrib"
       },
