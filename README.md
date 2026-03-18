@@ -20,6 +20,12 @@ Extensions are **passive plugins** — they don't require invocation:
 
 Install once. Works on every future session automatically.
 
+## Requirements
+
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code/setup) (`claude`)
+
+Install `claude` separately: [Claude Code installation guide](https://docs.anthropic.com/en/docs/claude-code/setup)
+
 ## Quickstart
 
 **1. Register the marketplace** in `~/.claude/settings.json`:
