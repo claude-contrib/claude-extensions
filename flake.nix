@@ -15,6 +15,7 @@
       in
       {
         devShells.default = pkgs.mkShell {
+          name = "claude-extensions";
           packages = with pkgs; [
             bash
             bats
