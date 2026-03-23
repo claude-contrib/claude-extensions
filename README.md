@@ -2,6 +2,7 @@
 
 > Hooks, context rules, and session automation for [Claude Code](https://claude.ai/code) — applied automatically, every session, zero extra prompts.
 
+[![Claude](https://img.shields.io/badge/Claude-AI-black?logo=anthropic)](https://claude.ai)
 [![Test](https://github.com/claude-contrib/claude-extensions/actions/workflows/test.yml/badge.svg)](https://github.com/claude-contrib/claude-extensions/actions/workflows/test.yml)
 [![Validate](https://github.com/claude-contrib/claude-extensions/actions/workflows/validate.yml/badge.svg)](https://github.com/claude-contrib/claude-extensions/actions/workflows/validate.yml)
 [![Release](https://img.shields.io/github/v/release/claude-contrib/claude-extensions)](https://github.com/claude-contrib/claude-extensions/releases/latest)
