@@ -1,0 +1,45 @@
+{
+  "name": "claude-cost-tracker-plugin",
+  "version": "1.0.0",
+  "description": "Claude Code plugin — real-time token usage and cost analytics with budgets, alerts, and a local dashboard",
+  "main": "hooks/cost-tracker.js",
+  "scripts": {
+    "postinstall": "echo 'claude-cost-tracker-plugin: dependencies installed. Reload plugins in Claude Code.'",
+    "setup": "ts-node scripts/setup.ts",
+    "reset-db": "ts-node scripts/reset-db.ts",
+    "seed-demo": "ts-node scripts/seed-demo.ts",
+    "status": "ts-node scripts/status.ts",
+    "set-model": "ts-node scripts/set-model.ts",
+    "dashboard": "cd dashboard && npm run dev",
+    "server": "ts-node server/index.ts",
+    "configure-remote": "ts-node scripts/configure-remote.ts",
+    "dev": "concurrently \"npm run dashboard\"",
+    "dev:team": "concurrently \"npm run dashboard\" \"npm run server\"",
+    "build": "cd dashboard && npm run build"
+  },
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "cost-tracker",
+    "token-usage",
+    "analytics"
+  ],
+  "author": "Mayur Bhavsar",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MayurBhavsar/claude-cost-tracker-plugin.git"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "chalk": "^4.1.2",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.0"
+  }
+}

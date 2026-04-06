@@ -1,0 +1,19 @@
+{
+  "name": "claude-cost-tracker",
+  "description": "Real-time token usage and cost analytics for Claude Code — tracks spend per developer, project, and session with budgets, alerts, and a local dashboard",
+  "version": "1.0.0",
+  "author": {
+    "name": "Mayur Bhavsar"
+  },
+  "homepage": "https://github.com/MayurBhavsar/claude-cost-tracker-plugin",
+  "repository": "https://github.com/MayurBhavsar/claude-cost-tracker-plugin",
+  "license": "MIT",
+  "keywords": [
+    "cost",
+    "tokens",
+    "usage",
+    "analytics",
+    "budget",
+    "dashboard"
+  ]
+}

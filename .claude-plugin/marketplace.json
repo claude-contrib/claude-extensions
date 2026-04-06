@@ -75,6 +75,33 @@
         "background",
         "notification-center"
       ]
+    },
+    {
+      "name": "claude-cost-tracker",
+      "description": "Real-time token usage and cost analytics — tracks spend per developer, project, and session with budgets, alerts, and a local dashboard",
+      "version": "1.0.0",
+      "author": {
+        "name": "Mayur Bhavsar"
+      },
+      "source": "./plugins/claude-cost-tracker",
+      "category": "analytics",
+      "tags": [
+        "cost",
+        "tokens",
+        "usage",
+        "budget",
+        "analytics"
+      ],
+      "keywords": [
+        "cost",
+        "tokens",
+        "usage",
+        "analytics",
+        "budget",
+        "dashboard",
+        "spending",
+        "tracking"
+      ]
     }
   ]
 }
