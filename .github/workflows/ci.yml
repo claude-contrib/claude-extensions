@@ -1,4 +1,9 @@
-name: validate
+name: CI
+
+permissions:
+  contents: write
+  id-token: write
+  pull-requests: write
 
 on:
   push:
@@ -7,14 +12,27 @@ on:
     branches: [main]
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v22
+
+      - name: Setup Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v13
+
+      - name: Run Tests
+        run: nix develop --command bats tests/
+
   validate-marketplace:
     name: Validate Marketplace
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
       - run: pip install check-jsonschema==0.31.3
-
       - name: Validate marketplace.json
         run: check-jsonschema --schemafile .github/schemas/marketplace.schema.json .claude-plugin/marketplace.json
 
@@ -23,15 +41,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
       - run: pip install check-jsonschema==0.31.3
-
       - name: Validate plugin.json files
         run: check-jsonschema --schemafile .github/schemas/plugin.schema.json plugins/*/.claude-plugin/plugin.json
-
       - name: Check each plugin listed in marketplace has a directory
         run: .github/scripts/check-plugin-dirs.sh
-
       - name: Check plugin.json versions match marketplace entries
         run: .github/scripts/check-version-sync.sh
 
@@ -40,6 +54,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
       - name: Check for duplicate plugin names
         run: .github/scripts/check-duplicate-names.sh
+
+  release:
+    needs: [build, validate-marketplace, validate-plugins, check-duplicates]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Create Release PR
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          manifest-file: .github/config/release-please-manifest.json
+          config-file: .github/config/release-please-config.json
+          target-branch: main
