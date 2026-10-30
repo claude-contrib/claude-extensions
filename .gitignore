@@ -58,3 +58,10 @@ result-*
 # Claude
 .github/sessions
 .github/worktrees
+
+# direnv
+.envrc.local
+
+# Local nix build result symlinks (point into /nix/store).
+.nix
+.nix-*-link
