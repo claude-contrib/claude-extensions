@@ -367,6 +367,14 @@ _stub_notify_send() {
 	[ "$status" -ne 0 ]
 }
 
+@test "linux _linux_window_has_class: a trailing dotted component is enough (wezterm)" {
+	_load Linux
+	xprop() { echo 'WM_CLASS(STRING) = "org.wezfurlong.wezterm", "org.wezfurlong.wezterm"'; }
+	_linux_window_has_class 0x1 "wezterm"
+	run _linux_window_has_class 0x1 "term"
+	[ "$status" -ne 0 ]
+}
+
 @test "linux _os_is_terminal_focused: false when not on X11" {
 	_load Linux
 	_linux_has_x11() { return 1; }
@@ -379,10 +387,10 @@ _stub_notify_send() {
 	_linux_has_x11() { return 0; }
 	_linux_active_window() { echo "0x20"; }
 	_tmux_option() { echo "wezterm"; }
-	xprop() { echo 'WM_CLASS(STRING) = "org.wezfurlong.wezterm", "org.wezfurlong.wezterm"'; }
+	xprop() { echo 'WM_CLASS(STRING) = "brave-browser", "Brave-browser"'; }
 	WINDOWID="" run _os_is_terminal_focused
 	[ "$status" -ne 0 ]
-	xprop() { echo 'WM_CLASS(STRING) = "wezterm", "org.wezfurlong.wezterm"'; }
+	xprop() { echo 'WM_CLASS(STRING) = "org.wezfurlong.wezterm", "org.wezfurlong.wezterm"'; }
 	WINDOWID="" _os_is_terminal_focused
 }
 
