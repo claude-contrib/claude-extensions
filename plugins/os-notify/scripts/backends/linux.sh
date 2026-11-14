@@ -13,8 +13,8 @@
 #
 # The terminal window is found with $WINDOWID when the terminal sets it,
 # otherwise by matching WM_CLASS against @claude-notify-terminal (case
-# insensitive, either the instance or the class part, e.g. "wezterm" or
-# "org.wezfurlong.wezterm"). Windows are raised with i3-msg (i3), wmctrl or
+# insensitive, either the instance or the class part; a trailing component is
+# enough, so "wezterm" matches "org.wezfurlong.wezterm"). Windows are raised with i3-msg (i3), wmctrl or
 # xdotool, whichever is available.
 #
 # Wayland sessions get plain notifications only: there is no portable way to
@@ -62,7 +62,8 @@ _linux_window_classes() {
 		tr -d '" ' | tr ',' '\n'
 }
 
-# Returns 0 if any WM_CLASS value of a window equals a name (case insensitive).
+# Returns 0 if any WM_CLASS value of a window equals a name or ends with ".name"
+# (case insensitive), so "wezterm" matches "org.wezfurlong.wezterm".
 #
 # Args:
 #   $1 - Window id
@@ -70,7 +71,7 @@ _linux_window_classes() {
 _linux_window_has_class() {
 	local want="${2,,}" value
 	while IFS= read -r value; do
-		[[ "${value,,}" == "$want" ]] && return 0
+		[[ "${value,,}" == "$want" || "${value,,}" == *".${want}" ]] && return 0
 	done < <(_linux_window_classes "$1")
 	return 1
 }

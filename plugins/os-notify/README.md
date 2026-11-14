@@ -33,12 +33,20 @@ Options are tmux options, as in `macos-notify`:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `@claude-notify-terminal` | `Ghostty` | The terminal used for focus detection and click-to-focus. macOS: application name (`Terminal`, `iTerm2`, `Alacritty`, `WezTerm`, `kitty`, `Ghostty`). Linux/X11: window class or instance from `xprop WM_CLASS`, case-insensitive (`ghostty`, `wezterm`, `kitty`, `Alacritty`). |
+| `@claude-notify-terminal` | `Ghostty` | The terminal used for focus detection and click-to-focus. macOS: application name (`Terminal`, `iTerm2`, `Alacritty`, `WezTerm`, `kitty`, `Ghostty`). Linux/X11: window class or instance from `xprop WM_CLASS`, case-insensitive; the last dotted part is enough (`ghostty`, `wezterm`, `kitty`, `Alacritty`). |
 | `@claude-notify-sound` | `on` | Play a sound with each notification |
 
 ```tmux
 set -g @claude-notify-terminal Ghostty
 set -g @claude-notify-sound on
+```
+
+Different terminal per OS? Set it conditionally:
+
+```tmux
+if-shell 'test "$(uname)" = Darwin' \
+  'set -g @claude-notify-terminal Ghostty' \
+  'set -g @claude-notify-terminal wezterm'
 ```
 
 ## macOS permissions
