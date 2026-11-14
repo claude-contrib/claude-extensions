@@ -12,14 +12,15 @@
 #
 #   Supported backends:
 #     macos  terminal-notifier (click-to-focus), falls back to osascript
-#     linux  notify-send (libnotify); no focus detection or click-to-focus yet
+#     linux  notify-send (libnotify); on X11 also focus detection and click-to-focus
 #
 # USAGE:
 #   Invoked automatically by Claude Code hooks on Notification events.
 #
 # TMUX OPTIONS (set via tmux set-option -g <option> <value>):
-#   @claude-notify-terminal  Ghostty  - (macOS) application name used for focus detection and
-#                                       click-to-focus (e.g. "Ghostty", "iTerm2", "Terminal").
+#   @claude-notify-terminal  Ghostty  - terminal used for focus detection and click-to-focus: macOS
+#                                       application name ("Ghostty", "iTerm2", "Terminal") or
+#                                       X11 WM_CLASS ("ghostty", "wezterm", "kitty").
 #   @claude-notify-sound     on        - Play a sound with the notification
 #
 # STDIN (JSON from Claude Code):

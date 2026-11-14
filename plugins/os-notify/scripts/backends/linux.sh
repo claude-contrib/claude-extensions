@@ -2,9 +2,23 @@
 #
 # linux.sh - Linux backend for os-notify (sourced by os-notify.sh)
 #
-# Uses notify-send (libnotify). Focus detection and click-to-focus are not
-# implemented yet, so notifications are never suppressed and clicking them
-# does nothing.
+# Notifications are sent with notify-send (libnotify). On X11 sessions the
+# backend also:
+#
+#   - detects whether the terminal window is the active window (via xprop),
+#     so notifications are suppressed while you are looking at Claude
+#   - raises the terminal window and switches the tmux window when the
+#     notification is clicked (needs notify-send >= 0.8 and a notification
+#     daemon that supports actions)
+#
+# The terminal window is found with $WINDOWID when the terminal sets it,
+# otherwise by matching WM_CLASS against @claude-notify-terminal (case
+# insensitive, either the instance or the class part, e.g. "wezterm" or
+# "org.wezfurlong.wezterm"). Windows are raised with i3-msg (i3), wmctrl or
+# xdotool, whichever is available.
+#
+# Wayland sessions get plain notifications only: there is no portable way to
+# read the focused window or to take focus there.
 
 # Exits 1 with a message if notify-send is not installed.
 _os_check_dependencies() {
@@ -14,13 +28,145 @@ _os_check_dependencies() {
 	fi
 }
 
-# Focus detection is not implemented on Linux; always report "not focused" so
-# the notification is shown.
-_os_is_terminal_focused() {
+# ---------------------------------------------------------------------------
+# X11 window helpers
+# ---------------------------------------------------------------------------
+
+# Returns 0 in an X11 session where xprop is available.
+_linux_has_x11() {
+	[[ -n "${DISPLAY:-}" ]] &&
+		[[ "${XDG_SESSION_TYPE:-}" != "wayland" ]] &&
+		command -v xprop &>/dev/null
+}
+
+# Prints a window id as a decimal number (accepts hex like 0x1800004).
+_linux_window_number() {
+	printf '%d' "$1" 2>/dev/null || true
+}
+
+# Prints the id (hex) of the active window, or nothing if there is none.
+_linux_active_window() {
+	local id
+	id="$(xprop -root _NET_ACTIVE_WINDOW 2>/dev/null | sed -n 's/.*# *\(0x[0-9a-fA-F]*\).*/\1/p')"
+	[[ "$id" != "0x0" ]] && echo "$id"
+	return 0
+}
+
+# Prints the WM_CLASS values (instance, class) of a window, one per line.
+#
+# Args:
+#   $1 - Window id
+_linux_window_classes() {
+	xprop -id "$1" WM_CLASS 2>/dev/null |
+		sed -n 's/^WM_CLASS(STRING) = //p' |
+		tr -d '" ' | tr ',' '\n'
+}
+
+# Returns 0 if any WM_CLASS value of a window equals a name (case insensitive).
+#
+# Args:
+#   $1 - Window id
+#   $2 - Class or instance name
+_linux_window_has_class() {
+	local want="${2,,}" value
+	while IFS= read -r value; do
+		[[ "${value,,}" == "$want" ]] && return 0
+	done < <(_linux_window_classes "$1")
 	return 1
 }
 
+# Prints the id of the terminal window: $WINDOWID when set, otherwise the first
+# window whose WM_CLASS matches @claude-notify-terminal.
+_linux_terminal_window() {
+	if [[ -n "${WINDOWID:-}" ]]; then
+		echo "$WINDOWID"
+		return 0
+	fi
+
+	local name id
+	name="$(_tmux_option "@claude-notify-terminal" "Ghostty")"
+	for id in $(xprop -root _NET_CLIENT_LIST 2>/dev/null | grep -o '0x[0-9a-fA-F]*'); do
+		if _linux_window_has_class "$id" "$name"; then
+			echo "$id"
+			return 0
+		fi
+	done
+	return 1
+}
+
+# Returns 0 if the terminal window is the active window.
+_os_is_terminal_focused() {
+	_linux_has_x11 || return 1
+
+	local active
+	active="$(_linux_active_window)"
+	[[ -n "$active" ]] || return 1
+
+	if [[ -n "${WINDOWID:-}" ]]; then
+		[[ "$(_linux_window_number "$active")" == "$(_linux_window_number "$WINDOWID")" ]]
+		return
+	fi
+
+	_linux_window_has_class "$active" "$(_tmux_option "@claude-notify-terminal" "Ghostty")"
+}
+
+# Raises a window using the first available tool.
+#
+# Args:
+#   $1 - Window id
+#
+# Returns 1 when no tool could do it.
+_linux_activate_window() {
+	local id number
+	id="$1"
+	number="$(_linux_window_number "$id")"
+	[[ -n "$number" ]] || return 1
+
+	if command -v i3-msg &>/dev/null && i3-msg -t get_version &>/dev/null; then
+		i3-msg "[id=${number}] focus" &>/dev/null
+	elif command -v wmctrl &>/dev/null; then
+		wmctrl -i -a "$id"
+	elif command -v xdotool &>/dev/null; then
+		xdotool windowactivate "$number"
+	else
+		return 1
+	fi
+}
+
+# Raise the terminal window and switch to Claude's tmux window.
+#
+# Args:
+#   $1 - tmux session name (empty when not in tmux)
+#   $2 - tmux window id (e.g. @4)
+#   $3 - tmux client tty (e.g. /dev/pts/3)
+_linux_focus() {
+	local tmux_session="$1" tmux_window="$2" tmux_client="$3"
+
+	if _linux_has_x11; then
+		local window
+		window="$(_linux_terminal_window || true)"
+		[[ -z "$window" ]] || _linux_activate_window "$window" || true
+	fi
+
+	if [[ -n "$tmux_client" ]] && [[ -n "$tmux_session" ]] && [[ -n "$tmux_window" ]]; then
+		tmux switch-client -c "$tmux_client" -t "${tmux_session}:${tmux_window}"
+	fi
+}
+
+# Returns 0 if notify-send supports --action (libnotify 0.8 and later).
+_linux_notify_send_has_actions() {
+	notify-send --help 2>&1 | grep -q -- '--action'
+}
+
+# ---------------------------------------------------------------------------
+# Sending
+# ---------------------------------------------------------------------------
+
 # Show a notification.
+#
+# When actions are supported, notify-send waits for a click, so it runs in a
+# detached background process: the hook returns immediately, and clicking the
+# notification focuses the terminal.
 #
 # Args:
 #   $1 - Title
@@ -36,5 +182,28 @@ _os_send() {
 		args+=(-h "string:sound-name:message-new-instant")
 	fi
 
-	notify-send "${args[@]}" -- "$title" "$body"
+	if ! _linux_notify_send_has_actions; then
+		notify-send "${args[@]}" -- "$title" "$body"
+		return
+	fi
+
+	local tmux_session="" tmux_window="" tmux_client=""
+	if [[ -n "${TMUX:-}" ]] && [[ -n "${TMUX_PANE:-}" ]]; then
+		tmux_session="$(_tmux_session_name)"
+		tmux_window="$(_tmux_window_id)"
+		tmux_client="$(_tmux_client_tty)"
+	fi
+
+	# "default" is the action the daemon runs when the notification body is clicked.
+	args+=(-A "default=Focus terminal")
+
+	# All file descriptors are redirected so the hook does not wait for this process.
+	(
+		local chosen
+		chosen="$(notify-send "${args[@]}" -- "$title" "$body" 2>/dev/null || true)"
+		if [[ "$chosen" == "default" ]]; then
+			_linux_focus "$tmux_session" "$tmux_window" "$tmux_client"
+		fi
+	) >/dev/null 2>&1 </dev/null &
+	disown
 }
