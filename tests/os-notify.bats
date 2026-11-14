@@ -257,6 +257,97 @@ _load() {
 }
 
 # ---------------------------------------------------------------------------
+# Terminal detection helpers (core)
+# ---------------------------------------------------------------------------
+
+@test "_terminal_start_pid: is this process outside tmux" {
+	_load Darwin
+	[ "$(TMUX="" _terminal_start_pid)" = "$$" ]
+}
+
+@test "_terminal_start_pid: is the tmux client pid inside tmux" {
+	_load Darwin
+	_tmux_client_pid() { echo 777; }
+	[ "$(TMUX="x" _terminal_start_pid)" = "777" ]
+}
+
+@test "_tmux_client_pid: falls back to all clients when the session has none" {
+	_load Darwin
+	_tmux_session_name() { echo "work"; }
+	tmux() {
+		case "$*" in
+		"list-clients -t work"*) ;; # session has no clients: empty output, success
+		"list-clients -F"*) printf '%s\n' "100 11" "200 22" ;;
+		esac
+	}
+	export -f tmux
+	[ "$(_tmux_client_pid)" = "22" ]
+}
+
+# ---------------------------------------------------------------------------
+# macOS backend: terminal detection
+# ---------------------------------------------------------------------------
+
+@test "macos _macos_terminal_pid: first ancestor that is a foreground app" {
+	_load Darwin
+	_macos_gui_pids() { printf '%s\n' 10 200 300; }
+	_terminal_start_pid() { echo 400; }
+	_ancestor_pids() { printf '%s\n' 400 300 200; }
+	[ "$(_macos_terminal_pid)" = "300" ]
+}
+
+@test "macos _macos_terminal_pid: fails when no ancestor is a foreground app" {
+	_load Darwin
+	_macos_gui_pids() { printf '%s\n' 10; }
+	_terminal_start_pid() { echo 400; }
+	_ancestor_pids() { printf '%s\n' 400 300; }
+	run _macos_terminal_pid
+	[ "$status" -ne 0 ]
+}
+
+@test "macos _os_is_terminal_focused: option set compares the frontmost name case-insensitively" {
+	_load Darwin
+	_tmux_option() { echo "Ghostty"; }
+	osascript() { echo "ghostty"; }
+	export -f osascript
+	_os_is_terminal_focused
+	_tmux_option() { echo "iTerm2"; }
+	run _os_is_terminal_focused
+	[ "$status" -ne 0 ]
+}
+
+@test "macos _os_is_terminal_focused: without the option, frontmost pid must be an ancestor" {
+	_load Darwin
+	_tmux_option() { echo ""; }
+	_terminal_start_pid() { echo 400; }
+	_ancestor_pids() { printf '%s\n' 400 300 200; }
+	osascript() { echo 300; }
+	export -f osascript
+	_os_is_terminal_focused
+	osascript() { echo 999; }
+	export -f osascript
+	run _os_is_terminal_focused
+	[ "$status" -ne 0 ]
+}
+
+@test "macos _os_is_terminal_focused: false when the frontmost pid is unknown" {
+	_load Darwin
+	_tmux_option() { echo ""; }
+	osascript() { return 1; }
+	export -f osascript
+	run _os_is_terminal_focused
+	[ "$status" -ne 0 ]
+}
+
+@test "macos _macos_focus_command: passes the terminal pid as the last argument" {
+	_load Darwin
+	_macos_terminal_pid() { echo 300; }
+	cmd="$(TMUX="" _macos_focus_command)"
+	[[ "$cmd" == *"macos-focus.sh"* ]]
+	[[ "$cmd" == *" 300" ]]
+}
+
+# ---------------------------------------------------------------------------
 # Linux backend: _os_send
 # ---------------------------------------------------------------------------
 
@@ -382,16 +473,90 @@ _stub_notify_send() {
 	[ "$status" -ne 0 ]
 }
 
-@test "linux _os_is_terminal_focused: true when active window class matches the option" {
+# xprop stub with three windows: 0x1 brave (pid 50), 0x2 wezterm (pid 100),
+# 0x3 wezterm (pid 200). $ACTIVE is the active window.
+_stub_xprop() {
+	xprop() {
+		case "$*" in
+		"-root _NET_ACTIVE_WINDOW") echo "_NET_ACTIVE_WINDOW(WINDOW): window id # ${ACTIVE:-0x0}" ;;
+		"-root _NET_CLIENT_LIST") echo "_NET_CLIENT_LIST(WINDOW): window id # 0x1, 0x2, 0x3" ;;
+		"-id 0x1 WM_CLASS") echo 'WM_CLASS(STRING) = "brave-browser", "Brave-browser"' ;;
+		"-id 0x2 WM_CLASS" | "-id 0x3 WM_CLASS") echo 'WM_CLASS(STRING) = "org.wezfurlong.wezterm", "org.wezfurlong.wezterm"' ;;
+		"-id 0x1 _NET_WM_PID") echo "_NET_WM_PID(CARDINAL) = 50" ;;
+		"-id 0x2 _NET_WM_PID") echo "_NET_WM_PID(CARDINAL) = 100" ;;
+		"-id 0x3 _NET_WM_PID") echo "_NET_WM_PID(CARDINAL) = 200" ;;
+		esac
+	}
+	export -f xprop
+}
+
+@test "linux _os_is_terminal_focused: with the option set, true when the active window class matches" {
 	_load Linux
+	_stub_xprop
 	_linux_has_x11() { return 0; }
-	_linux_active_window() { echo "0x20"; }
 	_tmux_option() { echo "wezterm"; }
-	xprop() { echo 'WM_CLASS(STRING) = "brave-browser", "Brave-browser"'; }
-	WINDOWID="" run _os_is_terminal_focused
+	ACTIVE=0x1 WINDOWID="" run _os_is_terminal_focused
 	[ "$status" -ne 0 ]
-	xprop() { echo 'WM_CLASS(STRING) = "org.wezfurlong.wezterm", "org.wezfurlong.wezterm"'; }
-	WINDOWID="" _os_is_terminal_focused
+	ACTIVE=0x2 WINDOWID="" _os_is_terminal_focused
+}
+
+@test "linux _ancestor_pids: lists a pid and its ancestors up to (excluding) 1" {
+	_load Linux
+	ps() { case "$4" in 300) echo " 200" ;; 200) echo " 100" ;; 100) echo " 1" ;; esac; }
+	export -f ps
+	[ "$(_ancestor_pids 300 | tr '\n' ' ')" = "300 200 100 " ]
+}
+
+@test "linux _linux_terminal_windows: without the option, picks the window owned by an ancestor pid" {
+	_load Linux
+	_stub_xprop
+	_tmux_option() { echo ""; }
+	_ancestor_pids() { printf '%s\n' 300 200 1; }
+	[ "$(WINDOWID="" TMUX="" _linux_terminal_windows)" = "0x3" ]
+}
+
+@test "linux _linux_terminal_windows: under tmux, starts from the tmux client pid" {
+	_load Linux
+	_stub_xprop
+	_tmux_option() { echo ""; }
+	_tmux_client_pid() { echo 4242; }
+	_ancestor_pids() { [ "$1" = "4242" ] && printf '%s\n' 4242 100; }
+	[ "$(WINDOWID="" TMUX="x" _linux_terminal_windows)" = "0x2" ]
+}
+
+@test "linux _linux_terminal_windows: nothing when no window belongs to the process tree" {
+	_load Linux
+	_stub_xprop
+	_tmux_option() { echo ""; }
+	_ancestor_pids() { printf '%s\n' 999; }
+	[ -z "$(WINDOWID="" TMUX="" _linux_terminal_windows)" ]
+}
+
+@test "linux _os_is_terminal_focused: auto-detect is true when the active window is the ancestor's window" {
+	_load Linux
+	_stub_xprop
+	_linux_has_x11() { return 0; }
+	_tmux_option() { echo ""; }
+	_ancestor_pids() { printf '%s\n' 100; }
+	ACTIVE=0x2 WINDOWID="" TMUX="" _os_is_terminal_focused
+	ACTIVE=0x1 WINDOWID="" TMUX="" run _os_is_terminal_focused
+	[ "$status" -ne 0 ]
+}
+
+@test "linux _linux_terminal_window: prefers the active window among several candidates" {
+	_load Linux
+	_stub_xprop
+	_tmux_option() { echo "wezterm"; }
+	[ "$(ACTIVE=0x3 WINDOWID="" _linux_terminal_window)" = "0x3" ]
+	[ "$(ACTIVE=0x1 WINDOWID="" _linux_terminal_window)" = "0x2" ]
+}
+
+@test "linux _tmux_client_pid: picks the most recently active client" {
+	_load Linux
+	_tmux_session_name() { echo "work"; }
+	tmux() { printf '%s\n' "100 11" "300 33" "200 22"; }
+	export -f tmux
+	[ "$(_tmux_client_pid)" = "33" ]
 }
 
 @test "linux _os_is_terminal_focused: compares against WINDOWID when set (hex vs decimal)" {

@@ -29,35 +29,32 @@ Other operating systems are a silent no-op. Wayland has no portable way to read 
 
 ## Configuration
 
-Options are tmux options, as in `macos-notify`:
+Nothing needs configuring: the terminal window is detected from the process tree (under tmux, from the tmux client attached to Claude's session). Options are tmux options, as in `macos-notify`:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `@claude-notify-terminal` | `Ghostty` | The terminal used for focus detection and click-to-focus. macOS: application name (`Terminal`, `iTerm2`, `Alacritty`, `WezTerm`, `kitty`, `Ghostty`). Linux/X11: window class or instance from `xprop WM_CLASS`, case-insensitive; the last dotted part is enough (`ghostty`, `wezterm`, `kitty`, `Alacritty`). |
+| `@claude-notify-terminal` | unset (auto-detect) | Optional override for the terminal used in focus detection and click-to-focus, for when auto-detection picks the wrong window. macOS: application name (`Ghostty`, `iTerm2`, …), case-insensitive. Linux/X11: window class or instance from `xprop WM_CLASS`, case-insensitive; the last dotted part is enough (`wezterm`, `kitty`). |
 | `@claude-notify-sound` | `on` | Play a sound with each notification |
 
 ```tmux
-set -g @claude-notify-terminal Ghostty
 set -g @claude-notify-sound on
+# only if auto-detection does not work for you:
+set -g @claude-notify-terminal wezterm
 ```
 
-Different terminal per OS? Set it conditionally:
+## How the terminal is detected
 
-```tmux
-if-shell 'test "$(uname)" = Darwin' \
-  'set -g @claude-notify-terminal Ghostty' \
-  'set -g @claude-notify-terminal wezterm'
-```
+- **macOS:** the foreground app (per System Events) whose PID is an ancestor of the hook process. Clicking the notification activates that app by bundle id.
+- **Linux/X11:** the window whose `_NET_WM_PID` is an ancestor of the hook process. `$WINDOWID` is used first when your terminal sets it.
+- **Under tmux** the tmux server is detached from the terminal, so the ancestry starts from the most recently active tmux client attached to Claude's session.
+
+Known limits: a sandboxed terminal (flatpak, snap) reports a PID that is not in the host process tree, and a terminal that runs behind a mux server breaks the chain. Terminals that keep all windows in one process (Ghostty) match any of their windows. In those cases set `@claude-notify-terminal`.
 
 ## macOS permissions
 
 1. Allow notifications: **System Settings → Notifications → terminal-notifier → Allow Notifications**.
 2. For click-to-focus, set the style to **Alerts** (Banners don't fire the click action).
 3. To slide to the terminal's Space on click, enable **Desktop & Dock → "When switching to an application, switch to a Space with open windows for the application"**.
-
-## Linux window matching
-
-On X11 the terminal window is found with `$WINDOWID` when your terminal sets it, otherwise by matching `@claude-notify-terminal` against the window's `WM_CLASS`. To see yours, run `xprop WM_CLASS` and click the terminal. If you have several windows of the same terminal and `$WINDOWID` is not set, the first one matches.
 
 ## Migrating from macos-notify
 
@@ -67,7 +64,7 @@ On X11 the terminal window is found with `$WINDOWID` when your terminal sets it,
 
 - **No notification on Linux:** run `notify-send test` in your terminal. If that shows nothing, the problem is your notification daemon, not the plugin.
 - **No notification on macOS:** run `terminal-notifier -message test`, and check the permissions above.
-- **Linux: notifications show while the terminal is focused, or click does nothing:** check `xprop WM_CLASS` against `@claude-notify-terminal`, and that `$DISPLAY` is set and the session is not Wayland.
+- **Notifications show while the terminal is focused, or click does nothing:** auto-detection may have picked no window or the wrong one. Set `@claude-notify-terminal` (Linux: check `xprop WM_CLASS`). On Linux also check that `$DISPLAY` is set and the session is not Wayland.
 - Set `DEBUG=1` in the hook's environment for a shell trace.
 
 ## Layout

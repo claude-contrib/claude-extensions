@@ -14,15 +14,49 @@ _os_check_dependencies() {
 	fi
 }
 
-# Returns 0 if the configured terminal app is the frontmost macOS application.
+# Prints the unix pids of all foreground (non-background) applications.
+_macos_gui_pids() {
+	osascript -e 'tell application "System Events" to get unix id of every application process whose background only is false' 2>/dev/null |
+		tr ',' '\n' | tr -d ' '
+}
+
+# Prints the pid of the terminal app: the first ancestor of the terminal start
+# pid (see _terminal_start_pid) that is a foreground application. Fails when
+# there is none.
+_macos_terminal_pid() {
+	local gui pid
+	gui="$(_macos_gui_pids)"
+	[[ -n "$gui" ]] || return 1
+	for pid in $(_ancestor_pids "$(_terminal_start_pid)"); do
+		if grep -qx -- "$pid" <<<"$gui"; then
+			echo "$pid"
+			return 0
+		fi
+	done
+	return 1
+}
+
+# Returns 0 if the terminal app is the frontmost macOS application.
+#
+# With @claude-notify-terminal set, the frontmost app's name is compared to it.
+# Otherwise the frontmost app's pid must be an ancestor of this process.
 _os_is_terminal_focused() {
 	local app_name
-	app_name="$(_tmux_option "@claude-notify-terminal" "Ghostty")"
+	app_name="$(_tmux_option "@claude-notify-terminal" "")"
 
-	local frontmost
-	frontmost="$(osascript "$(_scripts_dir)/backends/macos-active.scpt" 2>/dev/null || true)"
+	if [[ -n "$app_name" ]]; then
+		local frontmost
+		frontmost="$(osascript "$(_scripts_dir)/backends/macos-active.scpt" 2>/dev/null || true)"
+		# Case-insensitive (bash 3.2 has no ${var,,}): System Events reports
+		# e.g. "ghostty" for Ghostty.app.
+		[[ "$(tr '[:upper:]' '[:lower:]' <<<"$frontmost")" == "$(tr '[:upper:]' '[:lower:]' <<<"$app_name")" ]]
+		return
+	fi
 
-	[[ "$frontmost" == "$app_name" ]]
+	local front_pid
+	front_pid="$(osascript "$(_scripts_dir)/backends/macos-active.scpt" pid 2>/dev/null || true)"
+	[[ -n "$front_pid" ]] || return 1
+	_ancestor_pids "$(_terminal_start_pid)" | grep -qx -- "$front_pid"
 }
 
 # Build the shell-quoted focus command string passed to terminal-notifier -execute.
@@ -38,10 +72,11 @@ _macos_focus_command() {
 		tmux_client="$(_tmux_client_tty)"
 	fi
 
-	local tmux_bin cmd
+	local tmux_bin terminal_pid cmd
 	tmux_bin="$(command -v tmux 2>/dev/null || true)"
+	terminal_pid="$(_macos_terminal_pid || true)"
 
-	printf -v cmd '%q ' "$(_scripts_dir)/backends/macos-focus.sh" "$tmux_bin" "$tmux_session" "$tmux_window" "$tmux_client"
+	printf -v cmd '%q ' "$(_scripts_dir)/backends/macos-focus.sh" "$tmux_bin" "$tmux_session" "$tmux_window" "$tmux_client" "$terminal_pid"
 	echo "${cmd% }"
 }
 
