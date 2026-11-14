@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.0.0](https://github.com/claude-contrib/claude-extensions/compare/v1.4.0...v2.0.0) (2026-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **macos-notify:** remove in favor of os-notify
+
+### Features
+
+* **macos-notify:** remove in favor of os-notify ([bd716d8](https://github.com/claude-contrib/claude-extensions/commit/bd716d817be934ee3b85c41321173cb35a43909a))
+* **os-notify:** add cross-platform notification plugin ([7480f2d](https://github.com/claude-contrib/claude-extensions/commit/7480f2d537312db543b82cc3aaca1f6869c60e64))
+* **os-notify:** detect the terminal from the process tree ([9def4fb](https://github.com/claude-contrib/claude-extensions/commit/9def4fb28e0d0eefc906e6050823091c26c89d5f))
+* **os-notify:** X11 focus detection and click-to-focus on Linux ([a4c7ee9](https://github.com/claude-contrib/claude-extensions/commit/a4c7ee972f16e1daab70942399e050b91de08416))
+
+
+### Bug Fixes
+
+* add postCreateCommand to restore nix volume permissions ([1a49980](https://github.com/claude-contrib/claude-extensions/commit/1a49980d0706dc7576aaa39f2250689796172c30))
+* **ci:** merge with the App token so main gets its CI run ([#59](https://github.com/claude-contrib/claude-extensions/issues/59)) ([ee4cafe](https://github.com/claude-contrib/claude-extensions/commit/ee4cafe5af938455707e6909f09f458e90ba9f12))
+* **ci:** pin release-please baseline and set os-notify first version ([8e115b6](https://github.com/claude-contrib/claude-extensions/commit/8e115b6fc16da9f4daf1cbbdc74444b69c7ade2c))
+* **github:** correct action versions in update.yml ([bafb814](https://github.com/claude-contrib/claude-extensions/commit/bafb814abcb77c7d340540a9278f86c46da3eb9d))
+* **os-notify:** match X11 WM_CLASS by trailing component ([74ea9b0](https://github.com/claude-contrib/claude-extensions/commit/74ea9b03dfed6db18d128fa92fffcd966f1d5bd7))
+
 ## [1.4.0](https://github.com/claude-contrib/claude-extensions/compare/v1.3.1...v1.4.0) (2026-03-17)
 
 
