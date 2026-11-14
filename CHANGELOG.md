@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.0](https://github.com/claude-contrib/claude-extensions/compare/v2.0.0...v2.1.0) (2026-11-14)
+
+
+### Features
+
+* **os-notify:** question alert, Allow/Deny and answer buttons ([#65](https://github.com/claude-contrib/claude-extensions/issues/65)) ([286d8a8](https://github.com/claude-contrib/claude-extensions/commit/286d8a8a498c56804fdcef3b18f4a42d3a92f1d6))
+* **tmux-notify:** notify when Claude asks a question ([#66](https://github.com/claude-contrib/claude-extensions/issues/66)) ([da4aeb5](https://github.com/claude-contrib/claude-extensions/commit/da4aeb56eb5cdc03338966f9d712a02b10939800))
+
 ## [2.0.0](https://github.com/claude-contrib/claude-extensions/compare/v1.4.0...v2.0.0) (2026-11-14)
 
 
