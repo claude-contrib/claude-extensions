@@ -204,6 +204,41 @@ _linux_notify_send_has_actions() {
 # Sending
 # ---------------------------------------------------------------------------
 
+# Ask with one button per label and wait for the answer.
+#
+# Args:
+#   $1 - Title
+#   $2 - Body
+#   $3 - Sound name, or empty to omit sound (see _os_send)
+#   $4 - Seconds to wait for a click
+#   $5... - Button labels
+#
+# Prints the label of the clicked button. Prints nothing when the notification is dismissed
+# or times out, or when notify-send has no --action support or there is no
+# `timeout` command to bound the wait.
+_os_ask() {
+	local title="$1" body="$2" sound="$3" wait="$4"
+	shift 4
+	_linux_notify_send_has_actions || return 0
+	command -v timeout &>/dev/null || return 0
+
+	# Actions are named by index, so a label never has to be a valid action name.
+	local labels=("$@") args=(-a "Claude Code" -i dialog-information -h "string:x-canonical-private-synchronous:claude-code-ask") i
+	for i in "${!labels[@]}"; do
+		args+=(-A "${i}=${labels[$i]}")
+	done
+	if [[ -n "$sound" ]]; then
+		args+=(-h "string:sound-name:message-new-instant")
+	fi
+
+	local chosen
+	chosen="$(timeout "$wait" notify-send "${args[@]}" -- "$title" "$body" 2>/dev/null || true)"
+	[[ "$chosen" =~ ^[0-9]+$ ]] || return 0
+	if ((chosen < ${#labels[@]})); then
+		echo "${labels[$chosen]}"
+	fi
+}
+
 # Show a notification.
 #
 # When actions are supported, notify-send waits for a click, so it runs in a
