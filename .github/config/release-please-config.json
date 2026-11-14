@@ -62,6 +62,23 @@
           "jsonpath": "$.plugins[?(@.name=='macos-notify')].version"
         }
       ]
+    },
+    "plugins/os-notify": {
+      "release-type": "simple",
+      "component": "os-notify",
+      "skip-github-release": true,
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name=='os-notify')].version"
+        }
+      ]
     }
   }
 }

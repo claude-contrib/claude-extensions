@@ -1,0 +1,21 @@
+{
+  "name": "os-notify",
+  "version": "1.0.0",
+  "description": "Native desktop notifications for Claude Code on macOS and Linux — notifies when Claude needs your input",
+  "author": {
+    "name": "claude-contrib",
+    "email": "claude-contrib@github.com",
+    "url": "https://github.com/claude-contrib"
+  },
+  "homepage": "https://github.com/claude-contrib/claude-extensions",
+  "repository": "https://github.com/claude-contrib/claude-extensions",
+  "license": "MIT",
+  "keywords": [
+    "macos",
+    "linux",
+    "notification",
+    "focus",
+    "terminal",
+    "background"
+  ]
+}
