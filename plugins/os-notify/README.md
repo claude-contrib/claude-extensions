@@ -2,7 +2,7 @@
 
 > Native desktop notifications for Claude Code on macOS and Linux — get notified when Claude needs your input, even when you've switched to another app.
 
-`os-notify` is the cross-platform successor to [`macos-notify`](../macos-notify/README.md). It sends a notification on the `Notification` event (`permission_prompt`, `elicitation_dialog`) with the project name (`owner/repo` or directory basename) as the title and "Claude needs your input — \<branch\>" as the body. For task-completion alerts use [`tmux-notify`](../tmux-notify/README.md).
+`os-notify` replaces the former `macos-notify` plugin and adds Linux support. It sends a notification on the `Notification` event (`permission_prompt`, `elicitation_dialog`) with the project name (`owner/repo` or directory basename) as the title and "Claude needs your input — \<branch\>" as the body. For task-completion alerts use [`tmux-notify`](../tmux-notify/README.md).
 
 ## Platform support
 
@@ -48,7 +48,7 @@ set -g @claude-notify-sound on
 
 ## Migrating from macos-notify
 
-Uninstall `macos-notify` and install `os-notify`; the tmux options are unchanged. Don't run both, or you'll get duplicate notifications.
+`macos-notify` has been removed. Uninstall it and install `os-notify`; the tmux options are unchanged.
 
 ## Troubleshooting
 
