@@ -58,6 +58,7 @@ That's it — the extension activates on your next session start.
 | [`agent-rules`](plugins/agent-rules/README.md) | Automatically syncs [AGENTS.md](https://agents.md/) files into Claude Code path-specific rules on every session start |
 | [`tmux-notify`](plugins/tmux-notify/README.md) | tmux notifications for Claude Code — bell, display-message, and auto-focus |
 | [`macos-notify`](plugins/macos-notify/README.md) | Native macOS Notification Center alerts with click-to-focus when Claude needs your input |
+| [`os-notify`](plugins/os-notify/README.md) | Native desktop notifications on macOS and Linux when Claude needs your input — successor to `macos-notify` |
 
 ## Publish Your Own Extension
 
