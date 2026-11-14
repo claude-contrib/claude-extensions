@@ -1,6 +1,6 @@
 {
   "name": "os-notify",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Native desktop notifications for Claude Code on macOS and Linux — notifies when Claude needs your input",
   "author": {
     "name": "claude-contrib",

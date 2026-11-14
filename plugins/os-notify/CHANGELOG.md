@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/claude-contrib/claude-extensions/compare/v1.1.0...os-notify-v1.2.0) (2026-11-14)
+
+
+### Features
+
+* **os-notify:** question alert, Allow/Deny and answer buttons ([#65](https://github.com/claude-contrib/claude-extensions/issues/65)) ([286d8a8](https://github.com/claude-contrib/claude-extensions/commit/286d8a8a498c56804fdcef3b18f4a42d3a92f1d6))
+
 ## [1.1.0](https://github.com/claude-contrib/claude-extensions/compare/os-notify-v1.0.0...os-notify-v1.1.0) (2026-11-14)
 
 

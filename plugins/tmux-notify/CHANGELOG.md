@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/claude-contrib/claude-extensions/compare/tmux-notify-v1.10.0...tmux-notify-v1.11.0) (2026-11-14)
+
+
+### Features
+
+* **tmux-notify:** notify when Claude asks a question ([#66](https://github.com/claude-contrib/claude-extensions/issues/66)) ([da4aeb5](https://github.com/claude-contrib/claude-extensions/commit/da4aeb56eb5cdc03338966f9d712a02b10939800))
+
 ## [1.10.0](https://github.com/claude-contrib/claude-extensions/compare/tmux-notify-v1.9.0...tmux-notify-v1.10.0) (2026-11-14)
 
 
