@@ -2,7 +2,7 @@
 
 > Native desktop notifications for Claude Code on macOS and Linux — get notified when Claude needs your input, even when you've switched to another app.
 
-`os-notify` replaces the former `macos-notify` plugin and adds Linux support. It sends a notification on the `Notification` event (`permission_prompt`, `elicitation_dialog`) with the project name (`owner/repo` or directory basename) as the title and "Claude needs your input — \<branch\>" as the body. For task-completion alerts use [`tmux-notify`](../tmux-notify/README.md).
+`os-notify` replaces the former `macos-notify` plugin and adds Linux support. It sends a notification on the `Notification` event (`permission_prompt`, `elicitation_dialog`) and when Claude asks a question with `AskUserQuestion` ("Claude has a question"), with the project name (`owner/repo` or directory basename) as the title and "Claude needs your input — \<branch\>" as the body. When you are away, permission requests also get [Allow and Deny buttons](#allow-and-deny-from-the-notification). For task-completion alerts use [`tmux-notify`](../tmux-notify/README.md).
 
 ## Platform support
 
@@ -12,6 +12,7 @@
 | Sound | yes | if your notification daemon honors the `sound-name` hint | same |
 | Suppress when terminal is focused | yes | yes (`xprop`) | not yet — always notifies |
 | Click-to-focus (incl. tmux window) | yes, with `terminal-notifier` | yes, needs `notify-send` ≥ 0.8 and a daemon with action support | not yet |
+| Allow / Deny buttons | yes, with `terminal-notifier` | yes, needs `notify-send` ≥ 0.8, a daemon with action support and `timeout` | same |
 
 Other operating systems are a silent no-op. Wayland has no portable way to read the focused window or take focus, so those sessions get plain notifications.
 
@@ -35,12 +36,24 @@ Nothing needs configuring: the terminal window is detected from the process tree
 |--------|---------|-------------|
 | `@claude-notify-terminal` | unset (auto-detect) | Optional override for the terminal used in focus detection and click-to-focus, for when auto-detection picks the wrong window. macOS: application name (`Ghostty`, `iTerm2`, …), case-insensitive. Linux/X11: window class or instance from `xprop WM_CLASS`, case-insensitive; the last dotted part is enough (`wezterm`, `kitty`). |
 | `@claude-notify-sound` | `on` | Play a sound with each notification |
+| `@claude-notify-buttons` | `on` | Show Allow and Deny buttons on permission notifications while you are away. `off` keeps plain notifications. |
+| `@claude-notify-ask-timeout` | `25` | Seconds a permission notification waits for a click. Keep it below the hook `timeout` in `hooks/hooks.json` (30). |
 
 ```tmux
 set -g @claude-notify-sound on
 # only if auto-detection does not work for you:
 set -g @claude-notify-terminal wezterm
 ```
+
+## Allow and Deny from the notification
+
+When Claude asks for permission to use a tool and you are not looking at its terminal, the notification carries **Allow** and **Deny** buttons, and the text shows what is being approved, such as `Allow Bash? git status`. Clicking one answers the request through a `PermissionRequest` hook.
+
+- Nothing is decided unless you click a button. If you ignore or dismiss the notification, or it times out, the normal permission dialog appears as usual. Clicking the notification body focuses the terminal.
+- With the terminal focused, no notification is shown and the dialog appears immediately.
+- `AskUserQuestion` and `ExitPlanMode` are left to the terminal, because they need an answer and not a yes or no.
+- The notification shows the start of the command, file path or URL (120 characters, one line), so it can end up in Notification Center. Turn the buttons off with `@claude-notify-buttons off` if commands in your sessions can contain secrets.
+- On macOS, **Alerts** style shows the buttons at once, and **Banners** show them when you hover or expand the notification.
 
 ## How the terminal is detected
 
@@ -71,7 +84,7 @@ Known limits: a sandboxed terminal (flatpak, snap) reports a PID that is not in 
 
 ```
 scripts/os-notify.sh      shared logic: event handling, project/branch/tmux helpers
-scripts/backends/macos.sh   _os_send, _os_is_terminal_focused for macOS
+scripts/backends/macos.sh   _os_send, _os_ask, _os_is_terminal_focused for macOS
 scripts/backends/linux.sh   same interface for Linux (notify-send, X11 focus detection and activation)
 ```
 

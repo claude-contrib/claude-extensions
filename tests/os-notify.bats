@@ -794,3 +794,290 @@ _stub_xprop() {
 	result="$(main <<<'{"hook_event_name":"Stop"}')"
 	[ -z "$result" ]
 }
+
+# ---------------------------------------------------------------------------
+# Permission buttons: config
+# ---------------------------------------------------------------------------
+
+@test "_tmux_buttons_enabled: true by default" {
+	_load
+	_tmux_option() { echo "$2"; }
+	_tmux_buttons_enabled
+}
+
+@test "_tmux_buttons_enabled: false when the option is off" {
+	_load
+	_tmux_option() { echo "off"; }
+	! _tmux_buttons_enabled
+}
+
+@test "_ask_timeout: defaults to 25 seconds" {
+	_load
+	_tmux_option() { echo "$2"; }
+	[ "$(_ask_timeout)" = "25" ]
+}
+
+@test "_ask_timeout: uses a numeric option" {
+	_load
+	_tmux_option() { echo "10"; }
+	[ "$(_ask_timeout)" = "10" ]
+}
+
+@test "_ask_timeout: falls back to 25 when the option is not a number" {
+	_load
+	_tmux_option() { echo "soon"; }
+	[ "$(_ask_timeout)" = "25" ]
+}
+
+# ---------------------------------------------------------------------------
+# _permission_summary
+# ---------------------------------------------------------------------------
+
+@test "_permission_summary: names the tool and shows the command" {
+	_load
+	result="$(_permission_summary '{"tool_name":"Bash","tool_input":{"command":"git status"}}')"
+	[ "$result" = "Allow Bash? git status" ]
+}
+
+@test "_permission_summary: shows the file path for file tools" {
+	_load
+	result="$(_permission_summary '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/a.txt"}}')"
+	[ "$result" = "Allow Edit? /tmp/a.txt" ]
+}
+
+@test "_permission_summary: names only the tool without tool_input" {
+	_load
+	result="$(_permission_summary '{"tool_name":"Bash"}')"
+	[ "$result" = "Allow Bash?" ]
+}
+
+@test "_permission_summary: puts a multi-line command on one line" {
+	_load
+	result="$(_permission_summary '{"tool_name":"Bash","tool_input":{"command":"echo a\necho b"}}')"
+	[ "$result" = "Allow Bash? echo a echo b" ]
+}
+
+@test "_permission_summary: cuts a long command to 120 characters" {
+	_load
+	long="$(printf 'x%.0s' $(seq 200))"
+	result="$(_permission_summary "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$long\"}}")"
+	[ "$result" = "Allow Bash? $(printf 'x%.0s' $(seq 120))" ]
+}
+
+@test "_permission_summary: never starts with a dash, whatever the command" {
+	_load
+	result="$(_permission_summary '{"tool_name":"Bash","tool_input":{"command":"-rf /"}}')"
+	[[ "$result" == Allow* ]]
+}
+
+# ---------------------------------------------------------------------------
+# _handle_permission_request
+# ---------------------------------------------------------------------------
+
+# Stubs for a user who is away, with buttons on and a recording _os_ask.
+# $ASK_CHOICE is what the user "clicked".
+_away() {
+	_os_is_terminal_focused() { return 1; }
+	_project_name() { echo "myproject"; }
+	_tmux_buttons_enabled() { return 0; }
+	_tmux_sound_enabled() { return 0; }
+	_ask_timeout() { echo 25; }
+	_os_ask() { printf '%s\n' "$@" >"$BATS_TEST_TMPDIR/ask"; echo "${ASK_CHOICE:-}"; }
+}
+
+BASH_EVENT='{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"ls"}}'
+
+@test "_handle_permission_request: Allow prints an allow decision" {
+	_load
+	_away
+	result="$(ASK_CHOICE=Allow _handle_permission_request "$BASH_EVENT")"
+	[ "$(jq -r '.hookSpecificOutput.hookEventName' <<<"$result")" = "PermissionRequest" ]
+	[ "$(jq -r '.hookSpecificOutput.decision.behavior' <<<"$result")" = "allow" ]
+}
+
+@test "_handle_permission_request: Deny prints a deny decision with a message" {
+	_load
+	_away
+	result="$(ASK_CHOICE=Deny _handle_permission_request "$BASH_EVENT")"
+	[ "$(jq -r '.hookSpecificOutput.decision.behavior' <<<"$result")" = "deny" ]
+	[ -n "$(jq -r '.hookSpecificOutput.decision.message' <<<"$result")" ]
+}
+
+@test "_handle_permission_request: prints nothing when the notification is dismissed or times out" {
+	_load
+	_away
+	result="$(ASK_CHOICE="" _handle_permission_request "$BASH_EVENT")"
+	[ -z "$result" ]
+}
+
+@test "_handle_permission_request: prints nothing for an unexpected answer" {
+	_load
+	_away
+	result="$(ASK_CHOICE="Allow always" _handle_permission_request "$BASH_EVENT")"
+	[ -z "$result" ]
+}
+
+@test "_handle_permission_request: asks with title, summary, sound and timeout" {
+	_load
+	_away
+	ASK_CHOICE="" _handle_permission_request "$BASH_EVENT" >/dev/null
+	[ "$(cat "$BATS_TEST_TMPDIR/ask")" = "$(printf 'myproject\nAllow Bash? ls\nPing\n25')" ]
+}
+
+@test "_handle_permission_request: does not ask when the user is present" {
+	_load
+	_away
+	_os_is_terminal_focused() { return 0; }
+	result="$(ASK_CHOICE=Allow TMUX="" _handle_permission_request "$BASH_EVENT")"
+	[ -z "$result" ]
+	[ ! -e "$BATS_TEST_TMPDIR/ask" ]
+}
+
+@test "_handle_permission_request: does not ask when buttons are off" {
+	_load
+	_away
+	_tmux_buttons_enabled() { return 1; }
+	result="$(ASK_CHOICE=Allow _handle_permission_request "$BASH_EVENT")"
+	[ -z "$result" ]
+	[ ! -e "$BATS_TEST_TMPDIR/ask" ]
+}
+
+@test "_handle_permission_request: skips AskUserQuestion and ExitPlanMode" {
+	_load
+	_away
+	for tool in AskUserQuestion ExitPlanMode; do
+		result="$(ASK_CHOICE=Allow _handle_permission_request "{\"tool_name\":\"$tool\"}")"
+		[ -z "$result" ]
+	done
+	[ ! -e "$BATS_TEST_TMPDIR/ask" ]
+}
+
+@test "_handle_permission_request: skips an event without a tool name" {
+	_load
+	_away
+	result="$(ASK_CHOICE=Allow _handle_permission_request '{}')"
+	[ -z "$result" ]
+	[ ! -e "$BATS_TEST_TMPDIR/ask" ]
+}
+
+@test "main: PermissionRequest event goes to the permission handler" {
+	_load
+	_handle_permission_request() { echo "PERM:$1"; }
+	result="$(main <<<'{"hook_event_name":"PermissionRequest","tool_name":"Bash"}')"
+	[[ "$result" == PERM:* ]]
+}
+
+# ---------------------------------------------------------------------------
+# macOS backend: _os_ask
+# ---------------------------------------------------------------------------
+
+@test "macos _os_ask: asks with Allow and Deny buttons in its own group, with a timeout" {
+	_load Darwin
+	terminal-notifier() { printf '%s\n' "$@" >"$BATS_TEST_TMPDIR/args"; echo "Allow"; }
+	result="$(_os_ask "owner/repo" "Allow Bash? ls" "Ping" 25)"
+	[ "$result" = "Allow" ]
+	grep -qx "owner/repo" "$BATS_TEST_TMPDIR/args"
+	grep -qx "Allow Bash? ls" "$BATS_TEST_TMPDIR/args"
+	grep -qx "Allow,Deny" "$BATS_TEST_TMPDIR/args"
+	grep -qx "claude-code-ask" "$BATS_TEST_TMPDIR/args"
+	grep -qx "25" "$BATS_TEST_TMPDIR/args"
+	grep -qx "Ping" "$BATS_TEST_TMPDIR/args"
+}
+
+@test "macos _os_ask: omits -sound when sound is empty" {
+	_load Darwin
+	terminal-notifier() { printf '%s\n' "$@" >"$BATS_TEST_TMPDIR/args"; }
+	_os_ask "t" "b" "" 25
+	! grep -qx -- "-sound" "$BATS_TEST_TMPDIR/args"
+}
+
+@test "macos _os_ask: prints Deny when Deny is clicked" {
+	_load Darwin
+	terminal-notifier() { echo "Deny"; }
+	[ "$(_os_ask "t" "b" "" 25)" = "Deny" ]
+}
+
+@test "macos _os_ask: prints nothing on timeout or dismissal" {
+	_load Darwin
+	for out in "@TIMEOUT" "@CLOSED"; do
+		terminal-notifier() { echo "$out"; return 6; }
+		[ -z "$(_os_ask "t" "b" "" 25)" ]
+	done
+}
+
+@test "macos _os_ask: a click on the body focuses the terminal and prints nothing" {
+	_load Darwin
+	_macos_focus_command() { echo "touch $BATS_TEST_TMPDIR/focused"; }
+	terminal-notifier() { echo "@ACTIONCLICKED"; }
+	[ -z "$(_os_ask "t" "b" "" 25)" ]
+	[ -e "$BATS_TEST_TMPDIR/focused" ]
+}
+
+@test "macos _os_ask: prints nothing without terminal-notifier" {
+	_load Darwin
+	command() { [[ "$2" != "terminal-notifier" ]]; }
+	[ -z "$(_os_ask "t" "b" "" 25)" ]
+}
+
+# ---------------------------------------------------------------------------
+# Linux backend: _os_ask
+# ---------------------------------------------------------------------------
+
+# timeout stub that drops the seconds and runs the command
+_stub_timeout() {
+	timeout() {
+		echo "$1" >"$BATS_TEST_TMPDIR/timeout"
+		shift
+		"$@"
+	}
+}
+
+@test "linux _os_ask: asks with allow and deny actions and prints Allow" {
+	_load Linux
+	_stub_notify_send
+	_stub_timeout
+	result="$(NOTIFY_CHOSEN="allow" _os_ask "owner/repo" "Allow Bash? ls" "Ping" 25)"
+	[ "$result" = "Allow" ]
+	grep -qx "allow=Allow" "$BATS_TEST_TMPDIR/args"
+	grep -qx "deny=Deny" "$BATS_TEST_TMPDIR/args"
+	grep -qx "string:x-canonical-private-synchronous:claude-code-ask" "$BATS_TEST_TMPDIR/args"
+	grep -qx "string:sound-name:message-new-instant" "$BATS_TEST_TMPDIR/args"
+	[ "$(tail -n 2 "$BATS_TEST_TMPDIR/args")" = "$(printf 'owner/repo\nAllow Bash? ls')" ]
+	[ "$(cat "$BATS_TEST_TMPDIR/timeout")" = "25" ]
+}
+
+@test "linux _os_ask: prints Deny when deny is chosen" {
+	_load Linux
+	_stub_notify_send
+	_stub_timeout
+	[ "$(NOTIFY_CHOSEN="deny" _os_ask "t" "b" "" 25)" = "Deny" ]
+}
+
+@test "linux _os_ask: prints nothing when dismissed or timed out" {
+	_load Linux
+	_stub_notify_send
+	_stub_timeout
+	[ -z "$(NOTIFY_CHOSEN="" _os_ask "t" "b" "" 25)" ]
+}
+
+@test "linux _os_ask: prints nothing without action support" {
+	_load Linux
+	_stub_notify_send
+	_stub_timeout
+	[ -z "$(NOTIFY_HAS_ACTIONS=0 NOTIFY_CHOSEN="allow" _os_ask "t" "b" "" 25)" ]
+}
+
+@test "linux _os_ask: prints nothing without a timeout command" {
+	_load Linux
+	_stub_notify_send
+	command() { [[ "$2" != "timeout" ]]; }
+	[ -z "$(NOTIFY_CHOSEN="allow" _os_ask "t" "b" "" 25)" ]
+}
+
+@test "linux _os_ask: title starting with a dash is not parsed as an option" {
+	_load Linux
+	_stub_notify_send
+	_stub_timeout
+	NOTIFY_CHOSEN="" _os_ask "-evil" "b" "" 25 >/dev/null
+	[ "$(grep -nx -- '--' "$BATS_TEST_TMPDIR/args" | cut -d: -f1)" -lt "$(grep -nx -- '-evil' "$BATS_TEST_TMPDIR/args" | cut -d: -f1)" ]
+}

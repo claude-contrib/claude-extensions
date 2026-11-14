@@ -204,6 +204,36 @@ _linux_notify_send_has_actions() {
 # Sending
 # ---------------------------------------------------------------------------
 
+# Ask with Allow and Deny buttons and wait for the answer.
+#
+# Args:
+#   $1 - Title
+#   $2 - Body
+#   $3 - Sound name, or empty to omit sound (see _os_send)
+#   $4 - Seconds to wait for a click
+#
+# Prints "Allow" or "Deny". Prints nothing when the notification is dismissed
+# or times out, or when notify-send has no --action support or there is no
+# `timeout` command to bound the wait.
+_os_ask() {
+	local title="$1" body="$2" sound="$3" wait="$4"
+	_linux_notify_send_has_actions || return 0
+	command -v timeout &>/dev/null || return 0
+
+	local args=(-a "Claude Code" -i dialog-information -h "string:x-canonical-private-synchronous:claude-code-ask")
+	args+=(-A "allow=Allow" -A "deny=Deny")
+	if [[ -n "$sound" ]]; then
+		args+=(-h "string:sound-name:message-new-instant")
+	fi
+
+	local chosen
+	chosen="$(timeout "$wait" notify-send "${args[@]}" -- "$title" "$body" 2>/dev/null || true)"
+	case "$chosen" in
+	allow) echo "Allow" ;;
+	deny) echo "Deny" ;;
+	esac
+}
+
 # Show a notification.
 #
 # When actions are supported, notify-send waits for a click, so it runs in a

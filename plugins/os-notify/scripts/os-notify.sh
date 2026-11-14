@@ -9,6 +9,8 @@
 #     _os_check_dependencies           exit non-zero (with a message) if unusable
 #     _os_is_terminal_focused          0 if the terminal app is frontmost
 #     _os_send TITLE SUBTITLE SOUND    show the notification
+#     _os_ask TITLE BODY SOUND SECS    ask with Allow and Deny buttons, wait up to SECS,
+#                                      print "Allow" or "Deny" (nothing otherwise)
 #
 #   Supported backends:
 #     macos  terminal-notifier (click-to-focus), falls back to osascript
@@ -176,6 +178,21 @@ _tmux_sound_enabled() {
 	[[ "$(_tmux_option "@claude-notify-sound" "on")" == "on" ]]
 }
 
+# Returns 0 if @claude-notify-buttons is enabled (Allow/Deny buttons on
+# permission notifications)
+_tmux_buttons_enabled() {
+	[[ "$(_tmux_option "@claude-notify-buttons" "on")" == "on" ]]
+}
+
+# Prints how many seconds a permission notification waits for a click. Keep it
+# below the hook timeout in hooks.json, or Claude Code kills the hook first.
+_ask_timeout() {
+	local value
+	value="$(_tmux_option "@claude-notify-ask-timeout" "25")"
+	[[ "$value" =~ ^[0-9]+$ ]] || value=25
+	echo "$value"
+}
+
 # ---------------------------------------------------------------------------
 # State predicates
 # ---------------------------------------------------------------------------
@@ -271,15 +288,83 @@ _notify_alert() {
 # Event handler
 # ---------------------------------------------------------------------------
 
+# Returns 0 if the user is looking at Claude's terminal (and, under tmux, at
+# Claude's window), so no notification is needed.
+_user_is_present() {
+	_os_is_terminal_focused || return 1
+	[[ -z "${TMUX:-}" ]] || _tmux_is_active_window
+}
+
+# Prints a one-line description of a permission request for the notification.
+#
+# Starts with "Allow <tool>?" so the text never begins with a character that
+# the notifier would read as an option. The tool's command, file path or URL
+# follows when jq is available, cut to 120 characters on one line.
+#
+# Args:
+#   $1 - JSON event_args
+_permission_summary() {
+	local json="$1" tool detail=""
+	tool="$(_json_field "tool_name" "$json")"
+	if command -v jq &>/dev/null; then
+		detail="$(printf '%s' "$json" |
+			jq -r '.tool_input | (.command // .file_path // .path // .url // empty) | tostring' 2>/dev/null |
+			tr '\n' ' ' | cut -c1-120 | sed 's/[[:space:]]*$//' || true)"
+	fi
+	if [[ -n "$detail" ]]; then
+		echo "Allow ${tool}? ${detail}"
+	else
+		echo "Allow ${tool}?"
+	fi
+}
+
+# Handle a PermissionRequest event: when the user is away, ask with Allow and
+# Deny buttons and print the decision JSON for Claude Code.
+#
+# Prints nothing, which leaves the normal permission dialog in place, when the
+# user is present, buttons are off, or the notification is dismissed, times
+# out, or the notifier has no buttons. AskUserQuestion and ExitPlanMode are
+# skipped: they need an answer, not a yes or no.
+#
+# Args:
+#   $1 - JSON event_args
+_handle_permission_request() {
+	local event_args="$1" tool
+	tool="$(_json_field "tool_name" "$event_args")"
+	case "$tool" in
+	"" | AskUserQuestion | ExitPlanMode) return 0 ;;
+	esac
+
+	_tmux_buttons_enabled || return 0
+	if _user_is_present; then
+		return 0
+	fi
+
+	local sound="Ping"
+	if ! _tmux_sound_enabled; then
+		sound=""
+	fi
+
+	local choice
+	choice="$(_os_ask "$(_project_name)" "$(_permission_summary "$event_args")" "$sound" "$(_ask_timeout)")"
+
+	case "$choice" in
+	Allow)
+		printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}'
+		;;
+	Deny)
+		printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":"Denied from the desktop notification"}}}'
+		;;
+	esac
+}
+
 # Handle an event that needs the user's attention
 #
 # Args:
 #   $1 - Notification text (default: "Claude needs your input")
 _handle_event() {
-	if _os_is_terminal_focused; then
-		if [[ -z "${TMUX:-}" ]] || _tmux_is_active_window; then
-			return 0
-		fi
+	if _user_is_present; then
+		return 0
 	fi
 
 	local alert_title
@@ -321,6 +406,9 @@ main() {
 	case "$event_name" in
 	Notification)
 		_handle_event
+		;;
+	PermissionRequest)
+		_handle_permission_request "$event_args"
 		;;
 	PreToolUse)
 		# The AskUserQuestion form sends no Notification event, so it is
