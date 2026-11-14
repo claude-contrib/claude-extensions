@@ -9,8 +9,9 @@
 #     _os_check_dependencies           exit non-zero (with a message) if unusable
 #     _os_is_terminal_focused          0 if the terminal app is frontmost
 #     _os_send TITLE SUBTITLE SOUND    show the notification
-#     _os_ask TITLE BODY SOUND SECS    ask with Allow and Deny buttons, wait up to SECS,
-#                                      print "Allow" or "Deny" (nothing otherwise)
+#     _os_ask TITLE BODY SOUND SECS LABEL...
+#                                      ask with one button per LABEL, wait up to SECS,
+#                                      print the clicked label (nothing otherwise)
 #
 #   Supported backends:
 #     macos  terminal-notifier (click-to-focus), falls back to osascript
@@ -318,13 +319,93 @@ _permission_summary() {
 	fi
 }
 
+# Prints the button labels for an AskUserQuestion request, one per line, and
+# returns 0, when the question fits notification buttons. Returns 1 otherwise.
+#
+# It fits when jq is available, there is exactly one question, it is not
+# multi-select, and it has 2 to 4 options whose labels are 1 to 40 characters on
+# one line and start with a letter or digit, so the notifier never reads a label
+# as an option.
+#
+# Args:
+#   $1 - JSON event_args
+_question_choices() {
+	local json="$1" labels label count=0
+	command -v jq &>/dev/null || return 1
+	labels="$(printf '%s' "$json" | jq -r '
+		.tool_input.questions
+		| select(type == "array" and length == 1 and (.[0].multiSelect // false) == false)
+		| .[0].options
+		| select(type == "array" and length >= 2 and length <= 4
+			and all(.[]; (.label | type == "string") and ((.label | contains("\n")) | not)))
+		| .[].label' 2>/dev/null)" || return 1
+	[[ -n "$labels" ]] || return 1
+	while IFS= read -r label; do
+		[[ ${#label} -ge 1 && ${#label} -le 40 && "$label" =~ ^[[:alnum:]] ]] || return 1
+		count=$((count + 1))
+	done <<<"$labels"
+	((count >= 2 && count <= 4)) || return 1
+	printf '%s\n' "$labels"
+}
+
+# Prints the question text of an AskUserQuestion request on one line, cut to
+# 160 characters.
+#
+# Args:
+#   $1 - JSON event_args
+_question_text() {
+	printf '%s' "$1" |
+		jq -r '.tool_input.questions[0].question // empty' 2>/dev/null |
+		tr '\n' ' ' | cut -c1-160 | sed 's/[[:space:]]*$//' || true
+}
+
+# Handle an AskUserQuestion request: when the user is away and the question fits
+# buttons (see _question_choices), ask with one button per option and print the
+# decision JSON that answers it.
+#
+# Prints nothing, which leaves the question in the terminal, when the user is
+# present, buttons are off, the question does not fit, or the notification is
+# dismissed or times out.
+#
+# Args:
+#   $1 - JSON event_args
+_handle_question_request() {
+	local event_args="$1" labels label
+	_tmux_buttons_enabled || return 0
+	labels="$(_question_choices "$event_args")" || return 0
+	if _user_is_present; then
+		return 0
+	fi
+
+	local sound="Ping"
+	if ! _tmux_sound_enabled; then
+		sound=""
+	fi
+
+	local choices=()
+	while IFS= read -r label; do
+		choices+=("$label")
+	done <<<"$labels"
+
+	local choice
+	choice="$(_os_ask "$(_project_name)" "Claude asks: $(_question_text "$event_args")" "$sound" "$(_ask_timeout)" "${choices[@]}")"
+	[[ -n "$choice" ]] || return 0
+
+	printf '%s' "$event_args" | jq -c --arg a "$choice" '
+		.tool_input.questions[0].question as $q
+		| {hookSpecificOutput: {hookEventName: "PermissionRequest", decision: {
+			behavior: "allow",
+			updatedInput: (.tool_input + {answers: {($q): $a}})}}}'
+}
+
 # Handle a PermissionRequest event: when the user is away, ask with Allow and
 # Deny buttons and print the decision JSON for Claude Code.
 #
 # Prints nothing, which leaves the normal permission dialog in place, when the
 # user is present, buttons are off, or the notification is dismissed, times
-# out, or the notifier has no buttons. AskUserQuestion and ExitPlanMode are
-# skipped: they need an answer, not a yes or no.
+# out, or the notifier has no buttons. AskUserQuestion goes to
+# _handle_question_request, and ExitPlanMode is skipped: it needs a plan review,
+# not a yes or no.
 #
 # Args:
 #   $1 - JSON event_args
@@ -332,7 +413,11 @@ _handle_permission_request() {
 	local event_args="$1" tool
 	tool="$(_json_field "tool_name" "$event_args")"
 	case "$tool" in
-	"" | AskUserQuestion | ExitPlanMode) return 0 ;;
+	"" | ExitPlanMode) return 0 ;;
+	AskUserQuestion)
+		_handle_question_request "$event_args"
+		return
+		;;
 	esac
 
 	_tmux_buttons_enabled || return 0
@@ -346,7 +431,7 @@ _handle_permission_request() {
 	fi
 
 	local choice
-	choice="$(_os_ask "$(_project_name)" "$(_permission_summary "$event_args")" "$sound" "$(_ask_timeout)")"
+	choice="$(_os_ask "$(_project_name)" "$(_permission_summary "$event_args")" "$sound" "$(_ask_timeout)" Allow Deny)"
 
 	case "$choice" in
 	Allow)
@@ -412,9 +497,12 @@ main() {
 		;;
 	PreToolUse)
 		# The AskUserQuestion form sends no Notification event, so it is
-		# caught here, before the tool shows its form.
+		# caught here. When the question fits buttons, the PermissionRequest
+		# hook asks with buttons instead, so this alert would be a duplicate.
 		if [[ "$(_json_field "tool_name" "$event_args")" == "AskUserQuestion" ]]; then
-			_handle_event "Claude has a question"
+			if ! _tmux_buttons_enabled || ! _question_choices "$event_args" >/dev/null; then
+				_handle_event "Claude has a question"
+			fi
 		fi
 		;;
 	esac

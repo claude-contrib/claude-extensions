@@ -921,7 +921,7 @@ BASH_EVENT='{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_inpu
 	_load
 	_away
 	ASK_CHOICE="" _handle_permission_request "$BASH_EVENT" >/dev/null
-	[ "$(cat "$BATS_TEST_TMPDIR/ask")" = "$(printf 'myproject\nAllow Bash? ls\nPing\n25')" ]
+	[ "$(cat "$BATS_TEST_TMPDIR/ask")" = "$(printf 'myproject\nAllow Bash? ls\nPing\n25\nAllow\nDeny')" ]
 }
 
 @test "_handle_permission_request: does not ask when the user is present" {
@@ -942,13 +942,11 @@ BASH_EVENT='{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_inpu
 	[ ! -e "$BATS_TEST_TMPDIR/ask" ]
 }
 
-@test "_handle_permission_request: skips AskUserQuestion and ExitPlanMode" {
+@test "_handle_permission_request: skips ExitPlanMode" {
 	_load
 	_away
-	for tool in AskUserQuestion ExitPlanMode; do
-		result="$(ASK_CHOICE=Allow _handle_permission_request "{\"tool_name\":\"$tool\"}")"
-		[ -z "$result" ]
-	done
+	result="$(ASK_CHOICE=Allow _handle_permission_request '{"tool_name":"ExitPlanMode"}')"
+	[ -z "$result" ]
 	[ ! -e "$BATS_TEST_TMPDIR/ask" ]
 }
 
@@ -971,14 +969,16 @@ BASH_EVENT='{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_inpu
 # macOS backend: _os_ask
 # ---------------------------------------------------------------------------
 
-@test "macos _os_ask: asks with Allow and Deny buttons in its own group, with a timeout" {
+@test "macos _os_ask: asks with one -action per label in its own group, with a timeout" {
 	_load Darwin
 	terminal-notifier() { printf '%s\n' "$@" >"$BATS_TEST_TMPDIR/args"; echo "Allow"; }
-	result="$(_os_ask "owner/repo" "Allow Bash? ls" "Ping" 25)"
+	result="$(_os_ask "owner/repo" "Allow Bash? ls" "Ping" 25 Allow Deny)"
 	[ "$result" = "Allow" ]
 	grep -qx "owner/repo" "$BATS_TEST_TMPDIR/args"
 	grep -qx "Allow Bash? ls" "$BATS_TEST_TMPDIR/args"
-	grep -qx "Allow,Deny" "$BATS_TEST_TMPDIR/args"
+	[ "$(grep -cx -- "-action" "$BATS_TEST_TMPDIR/args")" = "2" ]
+	grep -qx "Allow" "$BATS_TEST_TMPDIR/args"
+	grep -qx "Deny" "$BATS_TEST_TMPDIR/args"
 	grep -qx "claude-code-ask" "$BATS_TEST_TMPDIR/args"
 	grep -qx "25" "$BATS_TEST_TMPDIR/args"
 	grep -qx "Ping" "$BATS_TEST_TMPDIR/args"
@@ -987,21 +987,21 @@ BASH_EVENT='{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_inpu
 @test "macos _os_ask: omits -sound when sound is empty" {
 	_load Darwin
 	terminal-notifier() { printf '%s\n' "$@" >"$BATS_TEST_TMPDIR/args"; }
-	_os_ask "t" "b" "" 25
+	_os_ask "t" "b" "" 25 Allow Deny
 	! grep -qx -- "-sound" "$BATS_TEST_TMPDIR/args"
 }
 
 @test "macos _os_ask: prints Deny when Deny is clicked" {
 	_load Darwin
 	terminal-notifier() { echo "Deny"; }
-	[ "$(_os_ask "t" "b" "" 25)" = "Deny" ]
+	[ "$(_os_ask "t" "b" "" 25 Allow Deny)" = "Deny" ]
 }
 
 @test "macos _os_ask: prints nothing on timeout or dismissal" {
 	_load Darwin
 	for out in "@TIMEOUT" "@CLOSED"; do
 		terminal-notifier() { echo "$out"; return 6; }
-		[ -z "$(_os_ask "t" "b" "" 25)" ]
+		[ -z "$(_os_ask "t" "b" "" 25 Allow Deny)" ]
 	done
 }
 
@@ -1009,14 +1009,14 @@ BASH_EVENT='{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_inpu
 	_load Darwin
 	_macos_focus_command() { echo "touch $BATS_TEST_TMPDIR/focused"; }
 	terminal-notifier() { echo "@ACTIONCLICKED"; }
-	[ -z "$(_os_ask "t" "b" "" 25)" ]
+	[ -z "$(_os_ask "t" "b" "" 25 Allow Deny)" ]
 	[ -e "$BATS_TEST_TMPDIR/focused" ]
 }
 
 @test "macos _os_ask: prints nothing without terminal-notifier" {
 	_load Darwin
 	command() { [[ "$2" != "terminal-notifier" ]]; }
-	[ -z "$(_os_ask "t" "b" "" 25)" ]
+	[ -z "$(_os_ask "t" "b" "" 25 Allow Deny)" ]
 }
 
 # ---------------------------------------------------------------------------
@@ -1032,52 +1032,286 @@ _stub_timeout() {
 	}
 }
 
-@test "linux _os_ask: asks with allow and deny actions and prints Allow" {
+@test "linux _os_ask: names actions by index and prints the label" {
 	_load Linux
 	_stub_notify_send
 	_stub_timeout
-	result="$(NOTIFY_CHOSEN="allow" _os_ask "owner/repo" "Allow Bash? ls" "Ping" 25)"
+	result="$(NOTIFY_CHOSEN="0" _os_ask "owner/repo" "Allow Bash? ls" "Ping" 25 Allow Deny)"
 	[ "$result" = "Allow" ]
-	grep -qx "allow=Allow" "$BATS_TEST_TMPDIR/args"
-	grep -qx "deny=Deny" "$BATS_TEST_TMPDIR/args"
+	grep -qx "0=Allow" "$BATS_TEST_TMPDIR/args"
+	grep -qx "1=Deny" "$BATS_TEST_TMPDIR/args"
 	grep -qx "string:x-canonical-private-synchronous:claude-code-ask" "$BATS_TEST_TMPDIR/args"
 	grep -qx "string:sound-name:message-new-instant" "$BATS_TEST_TMPDIR/args"
 	[ "$(tail -n 2 "$BATS_TEST_TMPDIR/args")" = "$(printf 'owner/repo\nAllow Bash? ls')" ]
 	[ "$(cat "$BATS_TEST_TMPDIR/timeout")" = "25" ]
 }
 
-@test "linux _os_ask: prints Deny when deny is chosen" {
+@test "linux _os_ask: prints Deny when the second action is chosen" {
 	_load Linux
 	_stub_notify_send
 	_stub_timeout
-	[ "$(NOTIFY_CHOSEN="deny" _os_ask "t" "b" "" 25)" = "Deny" ]
+	[ "$(NOTIFY_CHOSEN="1" _os_ask "t" "b" "" 25 Allow Deny)" = "Deny" ]
 }
 
 @test "linux _os_ask: prints nothing when dismissed or timed out" {
 	_load Linux
 	_stub_notify_send
 	_stub_timeout
-	[ -z "$(NOTIFY_CHOSEN="" _os_ask "t" "b" "" 25)" ]
+	[ -z "$(NOTIFY_CHOSEN="" _os_ask "t" "b" "" 25 Allow Deny)" ]
 }
 
 @test "linux _os_ask: prints nothing without action support" {
 	_load Linux
 	_stub_notify_send
 	_stub_timeout
-	[ -z "$(NOTIFY_HAS_ACTIONS=0 NOTIFY_CHOSEN="allow" _os_ask "t" "b" "" 25)" ]
+	[ -z "$(NOTIFY_HAS_ACTIONS=0 NOTIFY_CHOSEN="0" _os_ask "t" "b" "" 25 Allow Deny)" ]
 }
 
 @test "linux _os_ask: prints nothing without a timeout command" {
 	_load Linux
 	_stub_notify_send
 	command() { [[ "$2" != "timeout" ]]; }
-	[ -z "$(NOTIFY_CHOSEN="allow" _os_ask "t" "b" "" 25)" ]
+	[ -z "$(NOTIFY_CHOSEN="0" _os_ask "t" "b" "" 25 Allow Deny)" ]
 }
 
 @test "linux _os_ask: title starting with a dash is not parsed as an option" {
 	_load Linux
 	_stub_notify_send
 	_stub_timeout
-	NOTIFY_CHOSEN="" _os_ask "-evil" "b" "" 25 >/dev/null
+	NOTIFY_CHOSEN="" _os_ask "-evil" "b" "" 25 Allow Deny >/dev/null
 	[ "$(grep -nx -- '--' "$BATS_TEST_TMPDIR/args" | cut -d: -f1)" -lt "$(grep -nx -- '-evil' "$BATS_TEST_TMPDIR/args" | cut -d: -f1)" ]
+}
+
+# ---------------------------------------------------------------------------
+# Question buttons
+# ---------------------------------------------------------------------------
+
+# An AskUserQuestion event: one question, two options. $1 is the whole
+# tool_input.questions array; the default is a plain single-select question.
+_question_event() {
+	local questions="${1:-}"
+	if [[ -z "$questions" ]]; then
+		questions='[{"question":"Which one?","header":"H","multiSelect":false,"options":[{"label":"Alpha","description":"a"},{"label":"Beta","description":"b"}]}]'
+	fi
+	echo "{\"hook_event_name\":\"PermissionRequest\",\"tool_name\":\"AskUserQuestion\",\"tool_input\":{\"questions\":$questions}}"
+}
+
+# A question with the options given as a JSON array of labels.
+_question_with_labels() {
+	jq -c --argjson labels "$1" '[{question:"Which one?",header:"H",multiSelect:false,options:($labels | map({label:., description:"d"}))}]' <<<'null'
+}
+
+@test "_question_choices: prints the labels of a single-select question" {
+	_load
+	result="$(_question_choices "$(_question_event)")"
+	[ "$result" = "$(printf 'Alpha\nBeta')" ]
+}
+
+@test "_question_choices: fits 4 options" {
+	_load
+	run _question_choices "$(_question_event "$(_question_with_labels '["A","B","C","D"]')")"
+	[ "$status" -eq 0 ]
+}
+
+@test "_question_choices: rejects 1 option and 5 options" {
+	_load
+	! _question_choices "$(_question_event "$(_question_with_labels '["A"]')")"
+	! _question_choices "$(_question_event "$(_question_with_labels '["A","B","C","D","E"]')")"
+}
+
+@test "_question_choices: rejects a multi-select question" {
+	_load
+	q='[{"question":"Q","header":"H","multiSelect":true,"options":[{"label":"A","description":"d"},{"label":"B","description":"d"}]}]'
+	! _question_choices "$(_question_event "$q")"
+}
+
+@test "_question_choices: rejects more than one question" {
+	_load
+	q='[{"question":"Q1","header":"H","multiSelect":false,"options":[{"label":"A","description":"d"},{"label":"B","description":"d"}]},{"question":"Q2","header":"H","multiSelect":false,"options":[{"label":"A","description":"d"},{"label":"B","description":"d"}]}]'
+	! _question_choices "$(_question_event "$q")"
+}
+
+@test "_question_choices: rejects a label that could be read as an option" {
+	_load
+	for bad in '-rf' '[x]' '@TIMEOUT' '(a)' '"q"' '\\n'; do
+		! _question_choices "$(_question_event "$(_question_with_labels "[\"A\",$(jq -Rn --arg l "$bad" '$l')]")")"
+	done
+}
+
+@test "_question_choices: rejects an empty, too long or multi-line label" {
+	_load
+	! _question_choices "$(_question_event "$(_question_with_labels '["A",""]')")"
+	long="$(printf 'x%.0s' $(seq 41))"
+	! _question_choices "$(_question_event "$(_question_with_labels "[\"A\",\"$long\"]")")"
+	! _question_choices "$(_question_event "$(_question_with_labels '["A","B\nC"]')")"
+}
+
+@test "_question_choices: accepts a label with spaces and punctuation after the first character" {
+	_load
+	result="$(_question_choices "$(_question_event "$(_question_with_labels '["Yes, do it","No - skip"]')")")"
+	[ "$result" = "$(printf 'Yes, do it\nNo - skip')" ]
+}
+
+@test "_question_choices: fails without jq" {
+	_load
+	command() { [[ "$2" != "jq" ]]; }
+	! _question_choices "$(_question_event)"
+}
+
+@test "_question_choices: fails for an event without questions" {
+	_load
+	! _question_choices '{"tool_name":"AskUserQuestion"}'
+	! _question_choices '{"tool_name":"AskUserQuestion","tool_input":{"questions":"no"}}'
+}
+
+@test "_question_text: puts the question on one line and cuts it to 160 characters" {
+	_load
+	long="$(printf 'x%.0s' $(seq 200))"
+	q="$(printf 'line1\nline2 %s' "$long")"
+	result="$(_question_text "$(_question_event "$(jq -c --arg q "$q" '[{question:$q,multiSelect:false,options:[]}]' <<<null)")")"
+	[ "${#result}" -eq 160 ]
+	[[ "$result" == "line1 line2 "* ]]
+}
+
+@test "_handle_question_request: prints a decision that answers the question" {
+	_load
+	_away
+	event="$(_question_event)"
+	result="$(ASK_CHOICE=Beta _handle_question_request "$event")"
+	[ "$(jq -r '.hookSpecificOutput.hookEventName' <<<"$result")" = "PermissionRequest" ]
+	[ "$(jq -r '.hookSpecificOutput.decision.behavior' <<<"$result")" = "allow" ]
+	[ "$(jq -r '.hookSpecificOutput.decision.updatedInput.answers["Which one?"]' <<<"$result")" = "Beta" ]
+}
+
+@test "_handle_question_request: keeps the original questions in updatedInput" {
+	_load
+	_away
+	event="$(_question_event)"
+	result="$(ASK_CHOICE=Alpha _handle_question_request "$event")"
+	[ "$(jq -c '.hookSpecificOutput.decision.updatedInput.questions' <<<"$result")" = "$(jq -c '.tool_input.questions' <<<"$event")" ]
+}
+
+@test "_handle_question_request: answers a question that contains quotes safely" {
+	_load
+	_away
+	q='[{"question":"Use \"x\" or `y`?","header":"H","multiSelect":false,"options":[{"label":"Yes","description":"d"},{"label":"No","description":"d"}]}]'
+	result="$(ASK_CHOICE=Yes _handle_question_request "$(_question_event "$q")")"
+	[ "$(jq -r '.hookSpecificOutput.decision.updatedInput.answers["Use \"x\" or `y`?"]' <<<"$result")" = "Yes" ]
+}
+
+@test "_handle_question_request: asks with title, question, sound, timeout and the labels" {
+	_load
+	_away
+	ASK_CHOICE="" _handle_question_request "$(_question_event)" >/dev/null
+	[ "$(cat "$BATS_TEST_TMPDIR/ask")" = "$(printf 'myproject\nClaude asks: Which one?\nPing\n25\nAlpha\nBeta')" ]
+}
+
+@test "_handle_question_request: prints nothing when dismissed or timed out" {
+	_load
+	_away
+	result="$(ASK_CHOICE="" _handle_question_request "$(_question_event)")"
+	[ -z "$result" ]
+}
+
+@test "_handle_question_request: does not ask when the user is present" {
+	_load
+	_away
+	_os_is_terminal_focused() { return 0; }
+	result="$(ASK_CHOICE=Alpha TMUX="" _handle_question_request "$(_question_event)")"
+	[ -z "$result" ]
+	[ ! -e "$BATS_TEST_TMPDIR/ask" ]
+}
+
+@test "_handle_question_request: does not ask when buttons are off" {
+	_load
+	_away
+	_tmux_buttons_enabled() { return 1; }
+	result="$(ASK_CHOICE=Alpha _handle_question_request "$(_question_event)")"
+	[ -z "$result" ]
+	[ ! -e "$BATS_TEST_TMPDIR/ask" ]
+}
+
+@test "_handle_question_request: does not ask when the question does not fit" {
+	_load
+	_away
+	result="$(ASK_CHOICE=A _handle_question_request "$(_question_event "$(_question_with_labels '["A"]')")")"
+	[ -z "$result" ]
+	[ ! -e "$BATS_TEST_TMPDIR/ask" ]
+}
+
+@test "_handle_permission_request: sends an AskUserQuestion request to the question handler" {
+	_load
+	_away
+	result="$(ASK_CHOICE=Beta _handle_permission_request "$(_question_event)")"
+	[ "$(jq -r '.hookSpecificOutput.decision.updatedInput.answers["Which one?"]' <<<"$result")" = "Beta" ]
+}
+
+# ---------------------------------------------------------------------------
+# main: PreToolUse for AskUserQuestion avoids a duplicate alert
+# ---------------------------------------------------------------------------
+
+_pre_tool_use() {
+	jq -c '.hook_event_name = "PreToolUse"' <<<"$(_question_event "${1:-}")"
+}
+
+@test "main: PreToolUse sends no alert when the question fits buttons" {
+	_load
+	_tmux_buttons_enabled() { return 0; }
+	_handle_event() { echo "HANDLED:${1:-}"; }
+	result="$(main <<<"$(_pre_tool_use)")"
+	[ -z "$result" ]
+}
+
+@test "main: PreToolUse sends the alert when the question does not fit buttons" {
+	_load
+	_tmux_buttons_enabled() { return 0; }
+	_handle_event() { echo "HANDLED:${1:-}"; }
+	result="$(main <<<"$(_pre_tool_use "$(_question_with_labels '["A"]')")")"
+	[ "$result" = "HANDLED:Claude has a question" ]
+}
+
+@test "main: PreToolUse sends the alert when buttons are off" {
+	_load
+	_tmux_buttons_enabled() { return 1; }
+	_handle_event() { echo "HANDLED:${1:-}"; }
+	result="$(main <<<"$(_pre_tool_use)")"
+	[ "$result" = "HANDLED:Claude has a question" ]
+}
+
+# ---------------------------------------------------------------------------
+# _os_ask: labels
+# ---------------------------------------------------------------------------
+
+@test "macos _os_ask: returns the label that was clicked, for any labels" {
+	_load Darwin
+	terminal-notifier() { echo "Beta"; }
+	[ "$(_os_ask "t" "b" "" 25 Alpha Beta Gamma)" = "Beta" ]
+}
+
+@test "macos _os_ask: ignores an answer that is not one of the labels" {
+	_load Darwin
+	terminal-notifier() { echo "Other"; }
+	[ -z "$(_os_ask "t" "b" "" 25 Alpha Beta)" ]
+}
+
+@test "macos _os_ask: passes a label with a comma as one -action" {
+	_load Darwin
+	terminal-notifier() { printf '%s\n' "$@" >"$BATS_TEST_TMPDIR/args"; }
+	_os_ask "t" "b" "" 25 "Yes, do it" "No" >/dev/null
+	grep -qx "Yes, do it" "$BATS_TEST_TMPDIR/args"
+}
+
+@test "linux _os_ask: maps the chosen index to its label" {
+	_load Linux
+	_stub_notify_send
+	_stub_timeout
+	[ "$(NOTIFY_CHOSEN="2" _os_ask "t" "b" "" 25 Alpha Beta Gamma)" = "Gamma" ]
+}
+
+@test "linux _os_ask: ignores an index that is out of range or not a number" {
+	_load Linux
+	_stub_notify_send
+	_stub_timeout
+	[ -z "$(NOTIFY_CHOSEN="5" _os_ask "t" "b" "" 25 Alpha Beta)" ]
+	[ -z "$(NOTIFY_CHOSEN="x" _os_ask "t" "b" "" 25 Alpha Beta)" ]
 }

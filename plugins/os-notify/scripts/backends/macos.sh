@@ -80,7 +80,7 @@ _macos_focus_command() {
 	echo "${cmd% }"
 }
 
-# Ask with Allow and Deny buttons and wait for the answer.
+# Ask with one button per label and wait for the answer.
 #
 # Uses its own notification group, so a later alert cannot replace the buttons.
 # Clicking the notification body focuses the terminal.
@@ -90,14 +90,19 @@ _macos_focus_command() {
 #   $2 - Message body
 #   $3 - Sound name, or empty to omit sound
 #   $4 - Seconds to wait for a click
+#   $5... - Button labels
 #
-# Prints "Allow" or "Deny". Prints nothing when the notification is dismissed
+# Prints the label of the clicked button. Prints nothing when the notification is dismissed
 # or times out, or when terminal-notifier is missing (osascript has no buttons).
 _os_ask() {
 	local title="$1" body="$2" sound="$3" wait="$4"
+	shift 4
 	command -v terminal-notifier &>/dev/null || return 0
 
-	local args=(-title "$title" -message "$body" -group "claude-code-ask" -action "Allow,Deny" -timeout "$wait")
+	local args=(-title "$title" -message "$body" -group "claude-code-ask" -timeout "$wait") label
+	for label in "$@"; do
+		args+=(-action "$label")
+	done
 	if [[ -n "$sound" ]]; then
 		args+=(-sound "$sound")
 	fi
@@ -105,8 +110,16 @@ _os_ask() {
 	local chosen
 	chosen="$(terminal-notifier "${args[@]}" 2>/dev/null || true)"
 	case "$chosen" in
-	Allow | Deny) echo "$chosen" ;;
 	@ACTIONCLICKED) eval "$(_macos_focus_command)" >/dev/null 2>&1 || true ;;
+	@*) ;;
+	*)
+		for label in "$@"; do
+			if [[ "$chosen" == "$label" ]]; then
+				echo "$label"
+				return 0
+			fi
+		done
+		;;
 	esac
 }
 
