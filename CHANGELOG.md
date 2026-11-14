@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/claude-contrib/claude-extensions/compare/v2.1.0...v2.1.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **ci:** release os-notify 1.1.0 and move the release-please baseline ([#69](https://github.com/claude-contrib/claude-extensions/issues/69)) ([d20ecf6](https://github.com/claude-contrib/claude-extensions/commit/d20ecf69a4d481065963fed9420317c4a15c2c0d))
+
 ## [2.1.0](https://github.com/claude-contrib/claude-extensions/compare/v2.0.0...v2.1.0) (2026-11-14)
 
 
