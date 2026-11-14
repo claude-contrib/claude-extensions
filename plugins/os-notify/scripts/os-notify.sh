@@ -18,9 +18,10 @@
 #   Invoked automatically by Claude Code hooks on Notification events.
 #
 # TMUX OPTIONS (set via tmux set-option -g <option> <value>):
-#   @claude-notify-terminal  Ghostty  - terminal used for focus detection and click-to-focus: macOS
-#                                       application name ("Ghostty", "iTerm2", "Terminal") or
-#                                       X11 WM_CLASS ("ghostty", "wezterm", "kitty").
+#   @claude-notify-terminal  (unset)  - optional override for the terminal used in focus detection and
+#                                       click-to-focus. By default it is detected from the process
+#                                       tree. macOS: application name ("Ghostty", "iTerm2");
+#                                       X11: WM_CLASS ("ghostty", "wezterm", "kitty").
 #   @claude-notify-sound     on        - Play a sound with the notification
 #
 # STDIN (JSON from Claude Code):
@@ -123,6 +124,45 @@ _tmux_active_window_id() {
 # Prints the session ID of Claude's pane
 _tmux_pane_session_id() {
 	tmux display-message -p -t "${TMUX_PANE}" "#{session_id}" 2>/dev/null || true
+}
+
+# Prints the PID of the most recently active tmux client attached to Claude's
+# session (or of any client when that session has none), or nothing.
+_tmux_client_pid() {
+	local session clients format='#{client_activity} #{client_pid}'
+	session="$(_tmux_session_name)"
+	clients=""
+	if [[ -n "$session" ]]; then
+		clients="$(tmux list-clients -t "$session" -F "$format" 2>/dev/null || true)"
+	fi
+	if [[ -z "$clients" ]]; then
+		clients="$(tmux list-clients -F "$format" 2>/dev/null || true)"
+	fi
+	printf '%s\n' "$clients" | sort -rn | awk 'NR==1 { print $2 }'
+}
+
+# Prints a PID followed by all its ancestors (excluding PID 1), one per line.
+#
+# Args:
+#   $1 - PID
+_ancestor_pids() {
+	local pid="$1" parent
+	while [[ -n "$pid" ]] && [[ "$pid" -gt 1 ]] 2>/dev/null; do
+		echo "$pid"
+		parent="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')"
+		[[ "$parent" != "$pid" ]] || break
+		pid="$parent"
+	done
+}
+
+# Prints the PID whose ancestors lead to the terminal: the tmux client under
+# tmux (the tmux server is detached from the terminal), otherwise this process.
+_terminal_start_pid() {
+	if [[ -n "${TMUX:-}" ]]; then
+		_tmux_client_pid
+	else
+		echo "$$"
+	fi
 }
 
 # ---------------------------------------------------------------------------

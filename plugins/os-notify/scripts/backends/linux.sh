@@ -11,11 +11,16 @@
 #     notification is clicked (needs notify-send >= 0.8 and a notification
 #     daemon that supports actions)
 #
-# The terminal window is found with $WINDOWID when the terminal sets it,
-# otherwise by matching WM_CLASS against @claude-notify-terminal (case
-# insensitive, either the instance or the class part; a trailing component is
-# enough, so "wezterm" matches "org.wezfurlong.wezterm"). Windows are raised with i3-msg (i3), wmctrl or
-# xdotool, whichever is available.
+# The terminal window is found, in order, with:
+#   1. $WINDOWID, when the terminal sets it
+#   2. @claude-notify-terminal, when set: matched against WM_CLASS (case
+#      insensitive, instance or class; a trailing component is enough, so
+#      "wezterm" matches "org.wezfurlong.wezterm")
+#   3. process ancestry: the window whose _NET_WM_PID is an ancestor of this
+#      process (under tmux: of the most recently active client attached to
+#      Claude's session). This needs no configuration.
+#
+# Windows are raised with i3-msg (i3), wmctrl or xdotool, whichever is available.
 #
 # Wayland sessions get plain notifications only: there is no portable way to
 # read the focused window or to take focus there.
@@ -76,39 +81,75 @@ _linux_window_has_class() {
 	return 1
 }
 
-# Prints the id of the terminal window: $WINDOWID when set, otherwise the first
-# window whose WM_CLASS matches @claude-notify-terminal.
-_linux_terminal_window() {
+# Prints the _NET_WM_PID of a window, or nothing.
+#
+# Args:
+#   $1 - Window id
+_linux_window_pid() {
+	xprop -id "$1" _NET_WM_PID 2>/dev/null | sed -n 's/^_NET_WM_PID(CARDINAL) = //p'
+}
+
+# Prints the ids of all candidate terminal windows, one per line (see the
+# resolution order in the file header).
+_linux_terminal_windows() {
 	if [[ -n "${WINDOWID:-}" ]]; then
 		echo "$WINDOWID"
 		return 0
 	fi
 
-	local name id
-	name="$(_tmux_option "@claude-notify-terminal" "Ghostty")"
-	for id in $(xprop -root _NET_CLIENT_LIST 2>/dev/null | grep -o '0x[0-9a-fA-F]*'); do
-		if _linux_window_has_class "$id" "$name"; then
+	local id name
+	local windows
+	windows="$(xprop -root _NET_CLIENT_LIST 2>/dev/null | grep -o '0x[0-9a-fA-F]*' || true)"
+
+	name="$(_tmux_option "@claude-notify-terminal" "")"
+	if [[ -n "$name" ]]; then
+		for id in $windows; do
+			if _linux_window_has_class "$id" "$name"; then
+				echo "$id"
+			fi
+		done
+		return 0
+	fi
+
+	local ancestors pid
+	ancestors="$(_ancestor_pids "$(_terminal_start_pid)")"
+	for id in $windows; do
+		pid="$(_linux_window_pid "$id")"
+		if [[ -n "$pid" ]] && grep -qx -- "$pid" <<<"$ancestors"; then
+			echo "$id"
+		fi
+	done
+}
+
+# Prints the id of the terminal window to raise: the active one if it is a
+# candidate, otherwise the first candidate. Fails when there is none.
+_linux_terminal_window() {
+	local candidates active first="" id
+	candidates="$(_linux_terminal_windows)"
+	active="$(_linux_active_window)"
+	for id in $candidates; do
+		[[ -n "$first" ]] || first="$id"
+		if [[ -n "$active" ]] && [[ "$(_linux_window_number "$id")" == "$(_linux_window_number "$active")" ]]; then
 			echo "$id"
 			return 0
 		fi
 	done
-	return 1
+	[[ -n "$first" ]] || return 1
+	echo "$first"
 }
 
-# Returns 0 if the terminal window is the active window.
+# Returns 0 if the active window is one of the terminal windows.
 _os_is_terminal_focused() {
 	_linux_has_x11 || return 1
 
-	local active
+	local active id
 	active="$(_linux_active_window)"
 	[[ -n "$active" ]] || return 1
 
-	if [[ -n "${WINDOWID:-}" ]]; then
-		[[ "$(_linux_window_number "$active")" == "$(_linux_window_number "$WINDOWID")" ]]
-		return
-	fi
-
-	_linux_window_has_class "$active" "$(_tmux_option "@claude-notify-terminal" "Ghostty")"
+	for id in $(_linux_terminal_windows); do
+		[[ "$(_linux_window_number "$id")" == "$(_linux_window_number "$active")" ]] && return 0
+	done
+	return 1
 }
 
 # Raises a window using the first available tool.
