@@ -1,5 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "last-release-sha": "5d85bcd0c3af057e7c896dec9b6bfc0f71c9dcc8",
   "release-type": "simple",
   "packages": {
     ".": {
@@ -61,7 +62,8 @@
           "path": "/.claude-plugin/marketplace.json",
           "jsonpath": "$.plugins[?(@.name=='os-notify')].version"
         }
-      ]
+      ],
+      "release-as": "1.0.0"
     }
   }
 }
