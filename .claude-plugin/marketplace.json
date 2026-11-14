@@ -54,29 +54,6 @@
       ]
     },
     {
-      "name": "macos-notify",
-      "description": "Native macOS Notification Center alerts for Claude Code — notifies when Claude needs your input",
-      "version": "1.2.0",
-      "author": {
-        "name": "claude-contrib"
-      },
-      "source": "./plugins/macos-notify",
-      "category": "automation",
-      "tags": [
-        "macos",
-        "notification",
-        "focus"
-      ],
-      "keywords": [
-        "macos",
-        "notification",
-        "terminal",
-        "focus",
-        "background",
-        "notification-center"
-      ]
-    },
-    {
       "name": "os-notify",
       "description": "Native desktop notifications for Claude Code on macOS and Linux — notifies when Claude needs your input",
       "version": "1.0.0",
