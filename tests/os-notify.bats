@@ -257,36 +257,231 @@ _load() {
 }
 
 # ---------------------------------------------------------------------------
-# Linux backend: _os_send / _os_is_terminal_focused
+# Linux backend: _os_send
 # ---------------------------------------------------------------------------
 
-@test "linux _os_is_terminal_focused: always false (no focus detection yet)" {
-	_load Linux
-	run _os_is_terminal_focused
-	[ "$status" -ne 0 ]
+# notify-send stub that records its arguments and, like libnotify 0.8, lists
+# --action in --help. $NOTIFY_HAS_ACTIONS=0 simulates an older libnotify.
+_stub_notify_send() {
+	notify-send() {
+		if [[ "${1:-}" == "--help" ]]; then
+			[[ "${NOTIFY_HAS_ACTIONS:-1}" == "1" ]] && echo "  -A, --action=[NAME=]Text..."
+			return 0
+		fi
+		printf '%s\n' "$@" >"$BATS_TEST_TMPDIR/args"
+		echo "${NOTIFY_CHOSEN:-}"
+	}
+	export -f notify-send
 }
 
-@test "linux _os_send: calls notify-send with title and body after --" {
+@test "linux _os_send: without action support, calls notify-send in the foreground with title and body after --" {
 	_load Linux
-	notify-send() { printf '%s\n' "$@" >"$BATS_TEST_TMPDIR/args"; }
-	_os_send "owner/repo" "needs input" "Ping"
+	NOTIFY_HAS_ACTIONS=0 _stub_notify_send
+	NOTIFY_HAS_ACTIONS=0 _os_send "owner/repo" "needs input" "Ping"
 	[ "$(tail -n 2 "$BATS_TEST_TMPDIR/args")" = "$(printf 'owner/repo\nneeds input')" ]
 	grep -qx -- "--" "$BATS_TEST_TMPDIR/args"
 	grep -qx "string:sound-name:message-new-instant" "$BATS_TEST_TMPDIR/args"
+	! grep -q -- "--action\|^-A$" "$BATS_TEST_TMPDIR/args"
 }
 
 @test "linux _os_send: omits sound hint when sound is empty" {
 	_load Linux
-	notify-send() { printf '%s\n' "$@" >"$BATS_TEST_TMPDIR/args"; }
-	_os_send "t" "b" ""
+	NOTIFY_HAS_ACTIONS=0 _stub_notify_send
+	NOTIFY_HAS_ACTIONS=0 _os_send "t" "b" ""
 	! grep -q "sound-name" "$BATS_TEST_TMPDIR/args"
 }
 
 @test "linux _os_send: title starting with a dash is not parsed as an option" {
 	_load Linux
-	notify-send() { printf '%s\n' "$@" >"$BATS_TEST_TMPDIR/args"; }
-	_os_send "-evil" "b" ""
+	NOTIFY_HAS_ACTIONS=0 _stub_notify_send
+	NOTIFY_HAS_ACTIONS=0 _os_send "-evil" "b" ""
 	[ "$(grep -nx -- '--' "$BATS_TEST_TMPDIR/args" | cut -d: -f1)" -lt "$(grep -nx -- '-evil' "$BATS_TEST_TMPDIR/args" | cut -d: -f1)" ]
+}
+
+@test "linux _os_send: with action support, adds the default action and returns without waiting" {
+	_load Linux
+	_stub_notify_send
+	_linux_focus() { echo "FOCUSED" >"$BATS_TEST_TMPDIR/focus"; }
+	NOTIFY_CHOSEN="" _os_send "t" "b" ""
+	wait_for_file() { for _ in $(seq 50); do [[ -e "$1" ]] && return 0; sleep 0.1; done; return 1; }
+	wait_for_file "$BATS_TEST_TMPDIR/args"
+	grep -qx "default=Focus terminal" "$BATS_TEST_TMPDIR/args"
+	[ ! -e "$BATS_TEST_TMPDIR/focus" ]
+}
+
+@test "linux _os_send: focuses the terminal when the default action is chosen" {
+	_load Linux
+	_stub_notify_send
+	_linux_focus() { printf '%s|%s|%s' "$1" "$2" "$3" >"$BATS_TEST_TMPDIR/focus"; }
+	_tmux_session_name() { echo "work"; }
+	_tmux_window_id() { echo "@4"; }
+	_tmux_client_tty() { echo "/dev/pts/3"; }
+	TMUX="x" TMUX_PANE="%1" NOTIFY_CHOSEN="default" _os_send "t" "b" ""
+	for _ in $(seq 50); do [[ -e "$BATS_TEST_TMPDIR/focus" ]] && break; sleep 0.1; done
+	[ "$(cat "$BATS_TEST_TMPDIR/focus")" = "work|@4|/dev/pts/3" ]
+}
+
+# ---------------------------------------------------------------------------
+# Linux backend: X11 focus detection
+# ---------------------------------------------------------------------------
+
+@test "linux _linux_has_x11: false without DISPLAY" {
+	_load Linux
+	DISPLAY="" run _linux_has_x11
+	[ "$status" -ne 0 ]
+}
+
+@test "linux _linux_has_x11: false on a Wayland session" {
+	_load Linux
+	xprop() { :; }
+	export -f xprop
+	DISPLAY=":0" XDG_SESSION_TYPE="wayland" run _linux_has_x11
+	[ "$status" -ne 0 ]
+}
+
+@test "linux _linux_has_x11: true on X11 with xprop" {
+	_load Linux
+	xprop() { :; }
+	export -f xprop
+	DISPLAY=":0" XDG_SESSION_TYPE="x11" _linux_has_x11
+}
+
+@test "linux _linux_active_window: parses xprop output" {
+	_load Linux
+	xprop() { echo "_NET_ACTIVE_WINDOW(WINDOW): window id # 0x1800004"; }
+	[ "$(_linux_active_window)" = "0x1800004" ]
+}
+
+@test "linux _linux_active_window: empty when no window is active" {
+	_load Linux
+	xprop() { echo "_NET_ACTIVE_WINDOW(WINDOW): window id # 0x0"; }
+	[ -z "$(_linux_active_window)" ]
+}
+
+@test "linux _linux_window_has_class: matches instance or class, case insensitively" {
+	_load Linux
+	xprop() { echo 'WM_CLASS(STRING) = "ghostty", "com.mitchellh.Ghostty"'; }
+	_linux_window_has_class 0x1 "Ghostty"
+	_linux_window_has_class 0x1 "com.mitchellh.ghostty"
+	run _linux_window_has_class 0x1 "kitty"
+	[ "$status" -ne 0 ]
+}
+
+@test "linux _os_is_terminal_focused: false when not on X11" {
+	_load Linux
+	_linux_has_x11() { return 1; }
+	run _os_is_terminal_focused
+	[ "$status" -ne 0 ]
+}
+
+@test "linux _os_is_terminal_focused: true when active window class matches the option" {
+	_load Linux
+	_linux_has_x11() { return 0; }
+	_linux_active_window() { echo "0x20"; }
+	_tmux_option() { echo "wezterm"; }
+	xprop() { echo 'WM_CLASS(STRING) = "org.wezfurlong.wezterm", "org.wezfurlong.wezterm"'; }
+	WINDOWID="" run _os_is_terminal_focused
+	[ "$status" -ne 0 ]
+	xprop() { echo 'WM_CLASS(STRING) = "wezterm", "org.wezfurlong.wezterm"'; }
+	WINDOWID="" _os_is_terminal_focused
+}
+
+@test "linux _os_is_terminal_focused: compares against WINDOWID when set (hex vs decimal)" {
+	_load Linux
+	_linux_has_x11() { return 0; }
+	_linux_active_window() { echo "0x20"; }
+	WINDOWID=32 _os_is_terminal_focused
+	WINDOWID=33 run _os_is_terminal_focused
+	[ "$status" -ne 0 ]
+}
+
+@test "linux _os_is_terminal_focused: false when no window is active" {
+	_load Linux
+	_linux_has_x11() { return 0; }
+	_linux_active_window() { :; }
+	run _os_is_terminal_focused
+	[ "$status" -ne 0 ]
+}
+
+# ---------------------------------------------------------------------------
+# Linux backend: focusing
+# ---------------------------------------------------------------------------
+
+@test "linux _linux_terminal_window: prefers WINDOWID" {
+	_load Linux
+	[ "$(WINDOWID=77 _linux_terminal_window)" = "77" ]
+}
+
+@test "linux _linux_terminal_window: finds the first client window matching the class option" {
+	_load Linux
+	_tmux_option() { echo "kitty"; }
+	xprop() {
+		case "$*" in
+		*_NET_CLIENT_LIST*) echo "_NET_CLIENT_LIST(WINDOW): window id # 0x1, 0x2, 0x3" ;;
+		"-id 0x1 WM_CLASS") echo 'WM_CLASS(STRING) = "brave", "Brave"' ;;
+		"-id 0x2 WM_CLASS") echo 'WM_CLASS(STRING) = "kitty", "kitty"' ;;
+		"-id 0x3 WM_CLASS") echo 'WM_CLASS(STRING) = "kitty", "kitty"' ;;
+		esac
+	}
+	[ "$(WINDOWID="" _linux_terminal_window)" = "0x2" ]
+}
+
+@test "linux _linux_terminal_window: fails when nothing matches" {
+	_load Linux
+	_tmux_option() { echo "kitty"; }
+	xprop() { echo "_NET_CLIENT_LIST(WINDOW): window id # 0x1"; }
+	WINDOWID="" run _linux_terminal_window
+	[ "$status" -ne 0 ]
+}
+
+@test "linux _linux_activate_window: uses i3-msg with the decimal id under i3" {
+	_load Linux
+	i3-msg() { echo "$*" >>"$BATS_TEST_TMPDIR/calls"; }
+	export -f i3-msg
+	_linux_activate_window 0x20
+	grep -q '^\[id=32\] focus$' "$BATS_TEST_TMPDIR/calls"
+}
+
+@test "linux _linux_activate_window: falls back to wmctrl when i3 is not running" {
+	_load Linux
+	i3-msg() { return 1; }
+	wmctrl() { echo "$*" >"$BATS_TEST_TMPDIR/calls"; }
+	export -f i3-msg wmctrl
+	_linux_activate_window 0x20
+	[ "$(cat "$BATS_TEST_TMPDIR/calls")" = "-i -a 0x20" ]
+}
+
+@test "linux _linux_activate_window: falls back to xdotool" {
+	_load Linux
+	command() { [[ "$2" == "xdotool" ]]; }
+	xdotool() { echo "$*" >"$BATS_TEST_TMPDIR/calls"; }
+	_linux_activate_window 0x20
+	[ "$(cat "$BATS_TEST_TMPDIR/calls")" = "windowactivate 32" ]
+}
+
+@test "linux _linux_activate_window: fails when no tool is available" {
+	_load Linux
+	command() { return 1; }
+	run _linux_activate_window 0x20
+	[ "$status" -ne 0 ]
+}
+
+@test "linux _linux_focus: activates the window then switches the tmux client" {
+	_load Linux
+	_linux_has_x11() { return 0; }
+	_linux_terminal_window() { echo "0x20"; }
+	_linux_activate_window() { echo "activate $1" >>"$BATS_TEST_TMPDIR/calls"; }
+	tmux() { echo "tmux $*" >>"$BATS_TEST_TMPDIR/calls"; }
+	_linux_focus "work" "@4" "/dev/pts/3"
+	[ "$(cat "$BATS_TEST_TMPDIR/calls")" = "$(printf 'activate 0x20\ntmux switch-client -c /dev/pts/3 -t work:@4')" ]
+}
+
+@test "linux _linux_focus: skips tmux switch when not in tmux" {
+	_load Linux
+	_linux_has_x11() { return 1; }
+	tmux() { echo "tmux $*" >>"$BATS_TEST_TMPDIR/calls"; }
+	_linux_focus "" "" ""
+	[ ! -e "$BATS_TEST_TMPDIR/calls" ]
 }
 
 # ---------------------------------------------------------------------------
