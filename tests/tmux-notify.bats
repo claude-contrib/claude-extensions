@@ -225,3 +225,63 @@ _load() {
 	_handle_event "Stop"
 	[ "$bell_called" -eq 1 ]
 }
+
+@test "_handle_event: shows a question message for a Question event" {
+	_load
+	_tmux_is_active_pane() { return 1; }
+	_tmux_pane_window_name() { echo "main"; }
+	_notify_bell() { :; }
+	_notify_focus() { :; }
+	_notify_message() { echo "$1"; }
+	result="$(_handle_event "Question")"
+	[ "$result" = "Claude [main]: question" ]
+}
+
+@test "_handle_event: Question event is a no-op when already the active pane" {
+	_load
+	_tmux_is_active_pane() { return 0; }
+	_notify_bell() { echo "BELL_CALLED"; }
+	_notify_message() { echo "MSG_CALLED"; }
+	_notify_focus() { echo "FOCUS_CALLED"; }
+	result="$(_handle_event "Question")"
+	[ -z "$result" ]
+}
+
+# ---------------------------------------------------------------------------
+# main: event dispatch
+# ---------------------------------------------------------------------------
+
+# Source the script as if running inside tmux, so main does not exit early.
+_load_in_tmux() {
+	_load
+	TMUX="x"
+	TMUX_PANE="%1"
+}
+
+@test "main: PreToolUse for AskUserQuestion sends a Question event" {
+	_load_in_tmux
+	_handle_event() { echo "HANDLED:$1"; }
+	result="$(main <<<'{"hook_event_name":"PreToolUse","tool_name":"AskUserQuestion"}')"
+	[ "$result" = "HANDLED:Question" ]
+}
+
+@test "main: PreToolUse for another tool is ignored" {
+	_load_in_tmux
+	_handle_event() { echo "HANDLED:$1"; }
+	result="$(main <<<'{"hook_event_name":"PreToolUse","tool_name":"Bash"}')"
+	[ -z "$result" ]
+}
+
+@test "main: Stop and Notification events keep their event name" {
+	_load_in_tmux
+	_handle_event() { echo "HANDLED:$1"; }
+	[ "$(main <<<'{"hook_event_name":"Stop"}')" = "HANDLED:Stop" ]
+	[ "$(main <<<'{"hook_event_name":"Notification"}')" = "HANDLED:Notification" ]
+}
+
+@test "main: does nothing outside tmux" {
+	_load
+	_handle_event() { echo "HANDLED:$1"; }
+	result="$(TMUX="" TMUX_PANE="" main <<<'{"hook_event_name":"PreToolUse","tool_name":"AskUserQuestion"}')"
+	[ -z "$result" ]
+}

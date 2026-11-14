@@ -55,10 +55,11 @@ Options set with `-g` are global (apply to all sessions). Omit `-g` to scope an 
 
 ## How it works
 
-The plugin hooks into two Claude Code events:
+The plugin hooks into three Claude Code events:
 
 - **`Stop`** — fires when Claude finishes responding (matcher: `*`)
 - **`Notification`** — fires only for user-interaction events that require attention: `permission_prompt` and `elicitation_dialog`
+- **`PreToolUse`** — fires for `AskUserQuestion` only (matcher: `AskUserQuestion`). The question form sends no `Notification` event, so this is how a question reaches you. Other tools are ignored.
 
 > **Note:** Not all `Notification` event subtypes trigger this plugin. Only `permission_prompt` and `elicitation_dialog` are hooked, as these are the cases where you actually need to be alerted. Generic or informational notifications are intentionally excluded.
 
@@ -74,12 +75,13 @@ Compares Claude's `#{window_id}` to the currently active window within the same 
 |-------|--------------|
 | `Stop` | `Claude [window]: done` |
 | `Notification` | `Claude [window]: waiting` |
+| `AskUserQuestion` | `Claude [window]: question` |
 
 Where `window` is the tmux window name of Claude's pane at the time the event fires.
 
 ### Auto-focus
 
-Selects Claude's pane within its window via `tmux select-pane -t $TMUX_PANE`. Fires on both Stop and Notification events. Uses a short delay (0.25s) to run after Claude Code finishes its terminal UI update. Only affects the current window — it does not switch windows.
+Selects Claude's pane within its window via `tmux select-pane -t $TMUX_PANE`. Fires on Stop, Notification and question events. Uses a short delay (0.25s) to run after Claude Code finishes its terminal UI update. Only affects the current window — it does not switch windows.
 
 ## Active pane detection
 

@@ -8,7 +8,8 @@
 #   display-message, and auto-focus — all configurable via tmux options.
 #
 # USAGE:
-#   Invoked automatically by Claude Code hooks on Stop and Notification events.
+#   Invoked automatically by Claude Code hooks on Stop and Notification events, and on
+#   PreToolUse for AskUserQuestion.
 #
 # TMUX OPTIONS (set via tmux set-option -g <option> <value>):
 #   @claude-notify-bell          on  - Write \a to the pane TTY (visual bell)
@@ -16,7 +17,8 @@
 #   @claude-notify-auto-focus    off - Switch focus to Claude's pane on completion
 #
 # STDIN (JSON from Claude Code):
-#   hook_event_name        - "Stop" or "Notification"
+#   hook_event_name        - "Stop", "Notification" or "PreToolUse"
+#   tool_name              - "AskUserQuestion" (PreToolUse only; other tools are ignored)
 #
 # EXIT CODES:
 #   0 - Success (including graceful no-op when not in tmux)
@@ -199,7 +201,10 @@ _notify_focus() {
 # Event handler
 # ---------------------------------------------------------------------------
 
-# Handle a Stop or Notification event
+# Handle a Stop, Notification or Question event
+#
+# Args:
+#   $1 - Stop, Notification, or Question (Claude asks with AskUserQuestion)
 _handle_event() {
 	local event="$1"
 
@@ -218,6 +223,9 @@ _handle_event() {
 		;;
 	Notification)
 		_notify_message "Claude [${window}]: waiting"
+		;;
+	Question)
+		_notify_message "Claude [${window}]: question"
 		;;
 	esac
 
@@ -251,6 +259,13 @@ main() {
 	case "$event_name" in
 	Stop | Notification)
 		_handle_event "$event_name"
+		;;
+	PreToolUse)
+		# The AskUserQuestion form sends no Notification event, so it is
+		# caught here, before the tool shows its form.
+		if [[ "$(_json_field "tool_name" "$event_args")" == "AskUserQuestion" ]]; then
+			_handle_event "Question"
+		fi
 		;;
 	esac
 }
