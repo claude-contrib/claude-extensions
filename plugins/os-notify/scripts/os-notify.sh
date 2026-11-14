@@ -15,7 +15,8 @@
 #     linux  notify-send (libnotify); on X11 also focus detection and click-to-focus
 #
 # USAGE:
-#   Invoked automatically by Claude Code hooks on Notification events.
+#   Invoked automatically by Claude Code hooks on Notification events
+#   (permission_prompt, elicitation_dialog) and on PreToolUse for AskUserQuestion.
 #
 # TMUX OPTIONS (set via tmux set-option -g <option> <value>):
 #   @claude-notify-terminal  (unset)  - optional override for the terminal used in focus detection and
@@ -25,7 +26,8 @@
 #   @claude-notify-sound     on        - Play a sound with the notification
 #
 # STDIN (JSON from Claude Code):
-#   hook_event_name  - "Notification"
+#   hook_event_name  - "Notification" or "PreToolUse"
+#   tool_name        - "AskUserQuestion" (PreToolUse only; other tools are ignored)
 #
 # EXIT CODES:
 #   0 - Success (including graceful no-op on unsupported OS)
@@ -269,7 +271,10 @@ _notify_alert() {
 # Event handler
 # ---------------------------------------------------------------------------
 
-# Handle a Notification event
+# Handle an event that needs the user's attention
+#
+# Args:
+#   $1 - Notification text (default: "Claude needs your input")
 _handle_event() {
 	if _os_is_terminal_focused; then
 		if [[ -z "${TMUX:-}" ]] || _tmux_is_active_window; then
@@ -280,7 +285,7 @@ _handle_event() {
 	local alert_title
 	alert_title="$(_project_name)"
 
-	local alert_subtitle="Claude needs your input"
+	local alert_subtitle="${1:-Claude needs your input}"
 
 	local alert_sound="Ping"
 	if ! _tmux_sound_enabled; then
@@ -316,6 +321,13 @@ main() {
 	case "$event_name" in
 	Notification)
 		_handle_event
+		;;
+	PreToolUse)
+		# The AskUserQuestion form sends no Notification event, so it is
+		# caught here, before the tool shows its form.
+		if [[ "$(_json_field "tool_name" "$event_args")" == "AskUserQuestion" ]]; then
+			_handle_event "Claude has a question"
+		fi
 		;;
 	esac
 }

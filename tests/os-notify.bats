@@ -742,3 +742,55 @@ _stub_xprop() {
 	_handle_event
 	[ "$captured_sound" = "Ping" ]
 }
+
+@test "_handle_event: uses the default text without an argument" {
+	_load
+	_os_is_terminal_focused() { return 1; }
+	_project_name() { echo "myproject"; }
+	captured_text=""
+	_notify_alert() { captured_text="$2"; }
+	_handle_event
+	[ "$captured_text" = "Claude needs your input" ]
+}
+
+@test "_handle_event: uses the text passed as an argument" {
+	_load
+	_os_is_terminal_focused() { return 1; }
+	_project_name() { echo "myproject"; }
+	captured_text=""
+	_notify_alert() { captured_text="$2"; }
+	_handle_event "Claude has a question"
+	[ "$captured_text" = "Claude has a question" ]
+}
+
+# ---------------------------------------------------------------------------
+# main: event dispatch
+# ---------------------------------------------------------------------------
+
+@test "main: Notification event sends the default alert" {
+	_load
+	_handle_event() { echo "HANDLED:${1:-}"; }
+	result="$(main <<<'{"hook_event_name":"Notification","notification_type":"permission_prompt"}')"
+	[ "$result" = "HANDLED:" ]
+}
+
+@test "main: PreToolUse for AskUserQuestion sends the question alert" {
+	_load
+	_handle_event() { echo "HANDLED:${1:-}"; }
+	result="$(main <<<'{"hook_event_name":"PreToolUse","tool_name":"AskUserQuestion"}')"
+	[ "$result" = "HANDLED:Claude has a question" ]
+}
+
+@test "main: PreToolUse for another tool is ignored" {
+	_load
+	_handle_event() { echo "HANDLED:${1:-}"; }
+	result="$(main <<<'{"hook_event_name":"PreToolUse","tool_name":"Bash"}')"
+	[ -z "$result" ]
+}
+
+@test "main: unknown events are ignored" {
+	_load
+	_handle_event() { echo "HANDLED:${1:-}"; }
+	result="$(main <<<'{"hook_event_name":"Stop"}')"
+	[ -z "$result" ]
+}
